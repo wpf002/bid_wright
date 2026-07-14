@@ -1,5 +1,3 @@
-import { db } from "../client";
-
 async function seed() {
   console.log("🌱 Seeding database...");
   console.log("✅ Seed complete");

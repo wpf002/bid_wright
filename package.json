@@ -15,7 +15,7 @@
     "dev": "bash scripts/dev.sh",
     "test": "npm run test --workspaces --if-present",
     "lint": "eslint packages --ext .ts,.tsx",
-    "typecheck": "tsc --build",
+    "typecheck": "tsc --build && npm run typecheck --workspace=@bidwright/web",
     "db:migrate": "npm run migrate --workspace=@bidwright/db",
     "db:seed": "npm run seed --workspace=@bidwright/db",
     "db:generate": "npm run generate --workspace=@bidwright/db",

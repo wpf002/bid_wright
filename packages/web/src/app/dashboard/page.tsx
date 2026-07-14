@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Search, Filter, ChevronDown, Clock, AlertCircle,
-  CheckCircle2, ArrowUpRight, FileText, Plus,
+  ArrowUpRight, FileText, Plus,
 } from "lucide-react";
 
 // Demo data — replaced by real API calls in Phase 3
