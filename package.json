@@ -1,0 +1,40 @@
+{
+  "name": "bidwright",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-powered bid response platform for construction subcontractors",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wpf002/bid_wright.git"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev": "bash scripts/dev.sh",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "eslint packages --ext .ts,.tsx",
+    "typecheck": "tsc --build",
+    "db:migrate": "npm run migrate --workspace=@bidwright/db",
+    "db:seed": "npm run seed --workspace=@bidwright/db",
+    "db:generate": "npm run generate --workspace=@bidwright/db",
+    "api:dev": "npm run dev --workspace=@bidwright/api",
+    "web:dev": "npm run dev --workspace=@bidwright/web",
+    "clean": "rm -rf packages/*/dist packages/*/node_modules packages/*/.next node_modules"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0"
+  }
+}

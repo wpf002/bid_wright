@@ -1,0 +1,23 @@
+{
+  "name": "@bidwright/db",
+  "version": "0.1.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "migrate": "tsx src/migrate.ts",
+    "seed": "tsx src/seed/index.ts",
+    "generate": "drizzle-kit generate",
+    "studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@bidwright/shared": "*",
+    "drizzle-orm": "^0.30.0",
+    "postgres": "^3.4.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.0",
+    "drizzle-kit": "^0.20.0"
+  }
+}

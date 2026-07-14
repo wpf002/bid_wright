@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bidwright-postgres
+    environment:
+      POSTGRES_USER: bidwright
+      POSTGRES_PASSWORD: bidwright
+      POSTGRES_DB: bidwright
+    ports:
+      - "5432:5432"
+    volumes:
+      - bidwright_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bidwright"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  bidwright_pgdata:
