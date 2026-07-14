@@ -15,6 +15,7 @@ program
 program
   .command("extract <pdfPath>")
   .description("Extract structured data from an ITB PDF")
+  .option("--json", "Output raw validated JSON (default)")
   .option("--pretty", "Pretty-print summary instead of raw JSON")
   .action(async (pdfPath: string, opts) => {
     console.error(pc.dim(`→ Extracting ${pdfPath}...`));

@@ -5,7 +5,7 @@ import type { GenerationOptions } from "../types";
 import { randomUUID } from "node:crypto";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const DEFAULT_MODEL = "claude-opus-4-7";
+const DEFAULT_MODEL = "claude-opus-4-8";
 
 export async function generateBidResponse(
   extraction: ExtractionResult,
