@@ -9,6 +9,12 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   companyName: text("company_name"),
   primaryTrade: text("primary_trade"),
+  /**
+   * Slug for this user's private forwarding address
+   * (u-<token>@inbox.bidwright.app). Unguessable, because anyone who knows it
+   * can put bids on this user's board; rotatable for the same reason.
+   */
+  inboundToken: text("inbound_token").unique(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -131,6 +137,41 @@ export const userClauses = pgTable(
   (t) => ({
     userKindIdx: index("user_clauses_user_kind_idx").on(t.userId, t.kind),
     userTradeIdx: index("user_clauses_user_trade_idx").on(t.userId, t.trade),
+  }),
+);
+
+/**
+ * Every email that reached a user's forwarding address, with what we decided
+ * and why.
+ *
+ * Two jobs: dedupe (providers retry webhooks, and a forwarded thread can arrive
+ * twice), and an audit trail — when detection misses an ITB or lets one
+ * through, the estimator's first question is "what happened to that email?"
+ */
+export const inboundMessages = pgTable(
+  "inbound_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+    /** Provider's Message-ID; the dedupe key. */
+    messageId: text("message_id").notNull(),
+    fromAddress: text("from_address").notNull(),
+    subject: text("subject").notNull(),
+    /** "itb" | "not_itb" | "uncertain" */
+    classification: text("classification").notNull(),
+    score: integer("score").notNull().default(0),
+    /** Why we decided that, in plain language. */
+    reasons: jsonb("reasons").notNull(),
+    /** Set when the message produced a bid. */
+    bidId: uuid("bid_id").references(() => bids.id, { onDelete: "set null" }),
+    /** Populated when ingestion failed after we accepted the message. */
+    error: text("error"),
+    receivedAt: timestamp("received_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    userIdx: index("inbound_messages_user_idx").on(t.userId),
+    /** One row per message per user — makes webhook retries harmless. */
+    uniqueMessage: uniqueIndex("inbound_messages_user_message_idx").on(t.userId, t.messageId),
   }),
 );
 

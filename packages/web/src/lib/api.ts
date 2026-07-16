@@ -86,6 +86,25 @@ export interface CostSuggestionsResponse {
   suggestions: Record<string, CostSuggestion>;
 }
 
+export interface InboxAddress {
+  address: string;
+  /** False until an inbound domain is configured on the server. */
+  configured: boolean;
+}
+
+export interface InboundMessage {
+  id: string;
+  messageId: string;
+  fromAddress: string;
+  subject: string;
+  classification: "itb" | "not_itb" | "uncertain";
+  score: number;
+  reasons: string[];
+  bidId: string | null;
+  error: string | null;
+  receivedAt: string;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -281,6 +300,13 @@ export const api = {
     request<UserClause>(`/api/clauses/${id}/used`, { method: "POST" }),
 
   deleteClause: (id: string) => request<void>(`/api/clauses/${id}`, { method: "DELETE" }),
+
+  inboxAddress: () => request<InboxAddress>("/api/inbox/address"),
+
+  rotateInboxAddress: () =>
+    request<{ address: string }>("/api/inbox/address/rotate", { method: "POST" }),
+
+  inboxMessages: () => request<InboundMessage[]>("/api/inbox/messages"),
 
   listTemplates: () => request<Template[]>("/api/templates"),
 

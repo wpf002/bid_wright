@@ -1,10 +1,12 @@
 import type { FastifyInstance } from "fastify";
-import { db, bids, costHistory, userClauses, templates } from "@bidwright/db";
+import { db, bids, costHistory, userClauses, templates, users } from "@bidwright/db";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { BidLineItem } from "@bidwright/shared";
 import { suggestCostsForItems, toCostRecord, type CostRecord } from "@bidwright/core";
 import { requireAuth, currentUserId } from "../auth/middleware";
+import { generateInboundToken, inboundAddress } from "../inbox/postmark";
+import { recentInbound } from "./inbound";
 
 /**
  * Phase 4 — the intelligence layer: the user's own cost history, reusable
@@ -111,6 +113,36 @@ export async function intelligenceRoutes(app: FastifyInstance) {
       .where(eq(costHistory.userId, currentUserId(req)))
       .orderBy(desc(costHistory.createdAt))
       .limit(500);
+  });
+
+  // ---- inbox --------------------------------------------------------------
+
+  /**
+   * This user's private forwarding address, minted on first request so
+   * existing accounts get one without a backfill.
+   */
+  app.get("/inbox/address", async (req) => {
+    const userId = currentUserId(req);
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+
+    let token = user?.inboundToken ?? null;
+    if (!token) {
+      token = generateInboundToken();
+      await db.update(users).set({ inboundToken: token }).where(eq(users.id, userId));
+    }
+    return { address: inboundAddress(token), configured: Boolean(process.env.INBOUND_DOMAIN) };
+  });
+
+  /** Rotate the address — the old one stops working immediately. */
+  app.post("/inbox/address/rotate", async (req) => {
+    const token = generateInboundToken();
+    await db.update(users).set({ inboundToken: token }).where(eq(users.id, currentUserId(req)));
+    return { address: inboundAddress(token) };
+  });
+
+  /** What arrived, what we did with it, and why. */
+  app.get("/inbox/messages", async (req) => {
+    return recentInbound(currentUserId(req));
   });
 
   // ---- clause library -----------------------------------------------------
