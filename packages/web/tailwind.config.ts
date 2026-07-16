@@ -33,9 +33,10 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
-        mono: ["JetBrains Mono", "ui-monospace", "monospace"],
-        display: ["Inter", "system-ui", "sans-serif"],
+        // next/font injects these CSS variables; the literals stay as fallbacks.
+        sans: ["var(--font-inter)", "Inter", "system-ui", "-apple-system", "sans-serif"],
+        mono: ["var(--font-jetbrains-mono)", "JetBrains Mono", "ui-monospace", "monospace"],
+        display: ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
       },
       boxShadow: {
         soft: "0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.03)",

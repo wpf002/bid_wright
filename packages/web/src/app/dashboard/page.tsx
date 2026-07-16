@@ -146,7 +146,37 @@ export default function BidBoardPage() {
             </div>
           </div>
 
-          <div className="card overflow-hidden">
+          <ul className="space-y-2 sm:hidden">
+            {visible.map((bid) => {
+              const cd = countdown(bid.bidDeadline);
+              const st = STATUSES[bid.status] ?? STATUSES.draft;
+              return (
+                <li key={bid.id} className="card p-3">
+                  <Link href={`/bids/${bid.id}`} className="block">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                        {bid.projectName ?? bid.itbFileName}
+                      </span>
+                      <span className={`${st.class} shrink-0`}>{st.label}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">{bid.gcName ?? "—"}</p>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className={`flex items-center gap-1.5 text-xs ${TONE_CLASS[cd.tone]}`}>
+                        <Clock className="h-3.5 w-3.5" />
+                        {cd.label}
+                      </span>
+                      <span className="badge-slate capitalize">
+                        {(bid.primaryTrade ?? "other").replace(/_/g, " ")}
+                      </span>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* A 6-column table is unreadable at 390px, so mobile gets cards. */}
+          <div className="card hidden overflow-hidden sm:block">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-900/50">
@@ -200,12 +230,13 @@ export default function BidBoardPage() {
               </table>
             </div>
 
-            {visible.length === 0 && (
-              <div className="px-4 py-12 text-center text-sm text-slate-500">
-                No bids match {query ? `“${query}”` : "this filter"}.
-              </div>
-            )}
           </div>
+
+          {visible.length === 0 && (
+            <div className="card px-4 py-12 text-center text-sm text-slate-500">
+              No bids match {query ? `“${query}”` : "this filter"}.
+            </div>
+          )}
         </>
       )}
     </div>

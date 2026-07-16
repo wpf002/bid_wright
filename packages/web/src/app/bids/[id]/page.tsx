@@ -13,6 +13,7 @@ import { useRequireAuth } from "@/lib/auth-context";
 import { useAutosave } from "@/lib/use-autosave";
 import { PdfViewer } from "@/components/PdfViewer";
 import { ClauseList } from "@/components/ClauseList";
+import { ExportMenu } from "@/components/ExportMenu";
 import {
   parseDollarsToCents, formatCentsForInput, parseQuantity, withRecalculatedTotal,
   computeTotals, unpricedCount, blankLineItem, confidenceTone, type EditableBid,
@@ -172,8 +173,9 @@ export default function BidEditorPage() {
             {bid.gcName ?? "Unknown GC"} · {bid.itbFileName}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-4">
+        <div className="flex shrink-0 items-center gap-3">
           <SaveIndicator state={saveState} />
+          <ExportMenu bid={{ ...bid, ...draft }} companyName={user?.companyName ?? "Your Company"} />
           <div className="text-right">
             <div className="font-mono text-lg font-semibold text-slate-900 dark:text-slate-100">
               {formatCents(totals.totalCents)}
