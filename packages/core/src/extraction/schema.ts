@@ -1,5 +1,12 @@
 import { z } from "zod";
 import type { ExtractionResult, Trade } from "@bidwright/shared";
+import {
+  nullableString,
+  stringArray,
+  confidenceSchema,
+  nullableNumber,
+  nullablePageNumber,
+} from "../validation/primitives";
 
 /**
  * Zod schemas for validating the raw JSON the model returns for an extraction.
@@ -27,33 +34,15 @@ export function normalizeTrade(value: unknown): Trade {
 
 const tradeSchema = z.unknown().transform(normalizeTrade);
 
-const confidenceSchema = z
-  .number()
-  .catch(0.5)
-  .transform((n) => Math.min(1, Math.max(0, n)));
-
-const nullableString = z
-  .union([z.string(), z.null(), z.undefined()])
-  .transform((v) => (v == null || v === "" ? null : String(v)))
-  .catch(null);
-
-const stringArray = z
-  .array(z.string())
-  .catch([])
-  .transform((arr) => arr.map((s) => s.trim()).filter(Boolean));
-
 export const scopeItemSchema = z.object({
   id: z.union([z.string(), z.number()]).transform(String).catch(""),
   description: z.string().min(1),
   trade: tradeSchema,
-  quantity: z.union([z.number(), z.null(), z.undefined()]).transform((v) => (typeof v === "number" ? v : null)).catch(null),
+  quantity: nullableNumber,
   unit: nullableString,
   notes: nullableString,
   confidence: confidenceSchema,
-  sourcePage: z
-    .union([z.number(), z.null(), z.undefined()])
-    .transform((v) => (typeof v === "number" && v > 0 ? Math.floor(v) : null))
-    .catch(null),
+  sourcePage: nullablePageNumber,
 });
 
 export const metadataSchema = z.object({
@@ -80,7 +69,7 @@ export const metadataSchema = z.object({
 
 export const complianceSchema = z.object({
   bondRequired: z.boolean().catch(false),
-  bondPercent: z.union([z.number(), z.null(), z.undefined()]).transform((v) => (typeof v === "number" ? v : null)).catch(null),
+  bondPercent: nullableNumber,
   insuranceRequired: z.boolean().catch(false),
   insuranceLimits: stringArray,
   licenseRequirements: stringArray,
