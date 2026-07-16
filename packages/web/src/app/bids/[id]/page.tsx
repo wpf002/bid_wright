@@ -1,368 +1,702 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
+import { toast } from "sonner";
 import {
-  ArrowLeft, FileText, AlertTriangle, Download, Send,
-  Plus, GripVertical, X,
+  ArrowLeft, AlertTriangle, Loader2, Plus, Trash2, Check, CloudOff, FileText, Sparkles,
 } from "lucide-react";
-import { cn, confidenceClass } from "@/lib/utils";
+import { formatCents, type BidLineItem, type ExtractionResult } from "@bidwright/shared";
+import { api, ApiError, type BidRow } from "@/lib/api";
+import { useRequireAuth } from "@/lib/auth-context";
+import { useAutosave } from "@/lib/use-autosave";
+import { PdfViewer } from "@/components/PdfViewer";
+import { ClauseList } from "@/components/ClauseList";
+import {
+  parseDollarsToCents, formatCentsForInput, parseQuantity, withRecalculatedTotal,
+  computeTotals, unpricedCount, blankLineItem, confidenceTone, type EditableBid,
+} from "@/lib/editor";
 
-// Demo data matching the shape of a real BidResponse
-const DEMO_BID = {
-  id: "1",
-  itbFileName: "downtown-office-electrical.pdf",
-  status: "in_review",
-  projectName: "Downtown Office Fitout — Level 3",
-  gcName: "Turner Construction",
-  bidDeadline: "2026-07-28",
-  primaryTrade: "electrical",
-  warnings: [
-    "Panel schedule referenced on p.7 but not attached to the ITB.",
-    "Bond amount unclear — document states either 5% or 10% depending on section.",
-  ],
-  lineItems: [
-    { id: "li-1", description: "Rough-in wiring, tenant area", quantity: 12500, unit: "SF", unitCostCents: 0, totalCostCents: 0, confidence: 0.92, sourcePage: 3 },
-    { id: "li-2", description: "Panel PP-1 installation & feeders", quantity: 1, unit: "EA", unitCostCents: 0, totalCostCents: 0, confidence: 0.88, sourcePage: 5 },
-    { id: "li-3", description: "Recessed LED fixtures, 2x2", quantity: 84, unit: "EA", unitCostCents: 0, totalCostCents: 0, confidence: 0.75, sourcePage: 6 },
-    { id: "li-4", description: "Wall packs, exit signage", quantity: 12, unit: "EA", unitCostCents: 0, totalCostCents: 0, confidence: 0.65, sourcePage: 8 },
-    { id: "li-5", description: "Data cabling (Cat6A) rough-in", quantity: 3800, unit: "LF", unitCostCents: 0, totalCostCents: 0, confidence: 0.5, sourcePage: null },
-  ],
-  assumptions: [
-    "Work performed during standard business hours unless noted.",
-    "Existing structure adequate to support new fixture loads.",
-    "GC to provide temporary power and lighting.",
-    "Access to work area available with 24-hour notice.",
-  ],
-  clarifications: [
-    "Confirm bond percentage — 5% or 10%?",
-    "Panel schedule (p.7 reference) — please provide.",
-    "Prevailing wage requirements — Davis-Bacon applicable?",
-    "Fire alarm scope — included or separate contractor?",
-  ],
-  exclusions: [
-    "Cutting and patching of finished surfaces.",
-    "Temporary power beyond first 30 days.",
-    "Permits and inspection fees.",
-    "Cleanup beyond broom-clean of work area.",
-    "Fire alarm system.",
-    "Security low-voltage.",
-  ],
-};
-
-type Tab = "overview" | "line-items" | "assumptions" | "clarifications" | "exclusions" | "compliance";
-
-const TABS: { id: Tab; label: string; count?: number }[] = [
-  { id: "overview", label: "Overview" },
-  { id: "line-items", label: "Line Items", count: 5 },
-  { id: "assumptions", label: "Assumptions", count: 4 },
-  { id: "clarifications", label: "Clarifications", count: 4 },
-  { id: "exclusions", label: "Exclusions", count: 6 },
-  { id: "compliance", label: "Compliance" },
-];
+const TABS = ["Overview", "Line Items", "Assumptions", "Clarifications", "Exclusions", "Compliance"] as const;
+type Tab = (typeof TABS)[number];
 
 export default function BidEditorPage() {
-  const [tab, setTab] = useState<Tab>("overview");
-  const [bid] = useState(DEMO_BID);
+  const params = useParams<{ id: string }>();
+  const bidId = params.id;
+  const { user } = useRequireAuth();
+
+  const [bid, setBid] = useState<BidRow | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("Overview");
+  const [page, setPage] = useState(1);
+  const [jumpNonce, setJumpNonce] = useState(0);
+  const [drafting, setDrafting] = useState(false);
+  const [draft, setDraft] = useState<EditableBid | null>(null);
+
+  const hydrate = useCallback((row: BidRow) => {
+    setBid(row);
+    setDraft({
+      lineItems: row.lineItems ?? [],
+      assumptions: row.assumptions ?? [],
+      clarifications: row.clarifications ?? [],
+      exclusions: row.exclusions ?? [],
+      overheadPercent: row.overheadPercent,
+      profitPercent: row.profitPercent,
+      validityDays: row.validityDays,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const row = await api.getBid(bidId);
+        if (!cancelled) hydrate(row);
+      } catch (err) {
+        if (!cancelled) {
+          setLoadError(
+            err instanceof ApiError && err.status === 404
+              ? "Bid not found."
+              : "Could not load this bid.",
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [bidId, user, hydrate]);
+
+  /**
+   * Null-safe functional updater for the draft. Children always run behind the
+   * `!draft` guard, so they can treat it as non-null; the functional form keeps
+   * batched edits from overwriting each other.
+   */
+  const updateDraft = useCallback<React.Dispatch<React.SetStateAction<EditableBid>>>((action) => {
+    setDraft((prev) =>
+      prev === null
+        ? prev
+        : typeof action === "function"
+          ? (action as (p: EditableBid) => EditableBid)(prev)
+          : action,
+    );
+  }, []);
+
+  const totals = useMemo(
+    () => (draft ? computeTotals(draft.lineItems, draft.overheadPercent, draft.profitPercent) : null),
+    [draft],
+  );
+
+  const save = useCallback(
+    async (value: EditableBid) => {
+      const t = computeTotals(value.lineItems, value.overheadPercent, value.profitPercent);
+      await api.updateBid(bidId, {
+        lineItems: value.lineItems,
+        assumptions: value.assumptions,
+        clarifications: value.clarifications,
+        exclusions: value.exclusions,
+        overheadPercent: value.overheadPercent,
+        profitPercent: value.profitPercent,
+        validityDays: value.validityDays,
+        subtotalCents: t.subtotalCents,
+        totalCents: t.totalCents,
+      });
+    },
+    [bidId],
+  );
+
+  const { state: saveState } = useAutosave(draft as EditableBid, { onSave: save, delayMs: 2000 });
+
+  /** Click-through provenance: send the PDF to a scope item's source page. */
+  const jumpToPage = useCallback((target: number | null) => {
+    if (!target) return;
+    setPage(target);
+    setJumpNonce((n) => n + 1);
+  }, []);
+
+  async function runDraft() {
+    setDrafting(true);
+    try {
+      hydrate(await api.generateBid(bidId));
+      toast.success("Bid response drafted");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Could not draft the response");
+    } finally {
+      setDrafting(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+      </div>
+    );
+  }
+
+  if (loadError || !bid || !draft || !totals) {
+    return (
+      <div className="mx-auto max-w-md px-8 py-20 text-center">
+        <p className="text-sm text-slate-500">{loadError ?? "Could not load this bid."}</p>
+        <Link href="/dashboard" className="btn-secondary mt-4 px-4 py-2 text-sm">
+          Back to Bid Board
+        </Link>
+      </div>
+    );
+  }
+
+  const extraction = bid.extraction as ExtractionResult;
+  const warnings = extraction?.warnings ?? [];
+  const notDrafted = draft.lineItems.length === 0;
 
   return (
-    <div className="flex min-h-screen flex-col">
-      {/* Top bar */}
-      <div className="border-b border-slate-200 bg-white px-6 py-3 dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard" className="text-slate-500 hover:text-slate-900 dark:hover:text-slate-100">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-            <div>
-              <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-slate-400" />
-                <h1 className="font-medium text-slate-900 dark:text-slate-100">{bid.projectName}</h1>
-                <span className="badge-amber">In Review</span>
-              </div>
-              <div className="mt-0.5 text-xs text-slate-500">
-                {bid.gcName} · {bid.itbFileName} · Deadline {new Date(bid.bidDeadline).toLocaleDateString()}
-              </div>
+    <div className="flex h-screen flex-col">
+      <header className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200 px-5 py-3 dark:border-slate-800">
+        <div className="min-w-0">
+          <Link
+            href="/dashboard"
+            className="mb-0.5 inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+          >
+            <ArrowLeft className="h-3 w-3" />
+            Bid Board
+          </Link>
+          <h1 className="truncate text-base font-semibold text-slate-900 dark:text-slate-100">
+            {bid.projectName ?? bid.itbFileName}
+          </h1>
+          <p className="truncate text-xs text-slate-500">
+            {bid.gcName ?? "Unknown GC"} · {bid.itbFileName}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-4">
+          <SaveIndicator state={saveState} />
+          <div className="text-right">
+            <div className="font-mono text-lg font-semibold text-slate-900 dark:text-slate-100">
+              {formatCents(totals.totalCents)}
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="btn-secondary px-3 py-1.5 text-sm">
-              <Download className="h-4 w-4" />
-              Export
-            </button>
-            <button className="btn-primary px-3 py-1.5 text-sm">
-              <Send className="h-4 w-4" />
-              Mark submitted
-            </button>
+            <div className="text-xs text-slate-500">Total bid</div>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Warnings banner */}
-      {bid.warnings.length > 0 && (
-        <div className="border-b border-amber-200 bg-amber-50 px-6 py-3 dark:border-amber-900/50 dark:bg-amber-950/20">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
-            <div>
-              <div className="text-sm font-medium text-amber-900 dark:text-amber-100">
-                {bid.warnings.length} {bid.warnings.length === 1 ? "item" : "items"} need your review before submitting
+      <div className="flex min-h-0 flex-1">
+        <div className="hidden w-1/2 border-r border-slate-200 lg:block dark:border-slate-800">
+          <PdfViewer bidId={bidId} page={page} onPageChange={setPage} jumpNonce={jumpNonce} />
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          {warnings.length > 0 && (
+            <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-5 py-3 dark:border-amber-900/50 dark:bg-amber-950/30">
+              <div className="flex items-center gap-2 text-sm font-medium text-amber-800 dark:text-amber-300">
+                <AlertTriangle className="h-4 w-4" />
+                {warnings.length} thing{warnings.length === 1 ? "" : "s"} to check before you bid
               </div>
-              <ul className="mt-1 space-y-0.5 text-sm text-amber-800 dark:text-amber-200">
-                {bid.warnings.map((w, i) => (
-                  <li key={i}>• {w}</li>
+              <ul className="mt-1.5 space-y-1 pl-6 text-xs text-amber-700 dark:text-amber-400">
+                {warnings.map((w, i) => (
+                  <li key={i} className="list-disc">{w}</li>
                 ))}
               </ul>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Split view: PDF viewer + editor */}
-      <div className="flex flex-1">
-        {/* PDF preview column */}
-        <div className="hidden w-96 flex-shrink-0 border-r border-slate-200 bg-slate-100 xl:block dark:border-slate-800 dark:bg-slate-950/50">
-          <div className="border-b border-slate-200 px-4 py-2 text-xs font-medium text-slate-500 dark:border-slate-800">
-            SOURCE PDF
-          </div>
-          <div className="p-4 text-center text-sm text-slate-500">
-            <div className="mx-auto max-w-[240px]">
-              <div className="aspect-[8.5/11] rounded border border-slate-300 bg-white shadow-soft dark:border-slate-700 dark:bg-slate-800">
-                <div className="p-6 text-left text-[10px] leading-relaxed">
-                  <div className="mb-3 font-semibold text-slate-900 dark:text-slate-100">INVITATION TO BID</div>
-                  <div className="text-slate-500">Project: Downtown Office...</div>
-                  <div className="mt-3 text-slate-500">
-                    3.1 Electrical Scope — Contractor shall provide all labor,
-                    material, equipment...
-                  </div>
-                </div>
-              </div>
-              <div className="mt-3 text-xs text-slate-500">Page 3 of 12</div>
-              <div className="mt-3 text-xs text-slate-400">
-                Click any line item to jump to its source page.
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Editor column */}
-        <div className="flex-1 bg-white dark:bg-slate-950">
-          {/* Tabs */}
-          <div className="border-b border-slate-200 px-6 dark:border-slate-800">
-            <div className="flex gap-1">
-              {TABS.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  className={cn(
-                    "border-b-2 px-3 py-3 text-sm font-medium transition-colors",
-                    tab === t.id
-                      ? "border-amber-500 text-slate-900 dark:text-slate-100"
-                      : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200",
-                  )}
-                >
-                  {t.label}
-                  {t.count !== undefined && (
-                    <span className="ml-1.5 text-xs text-slate-400">{t.count}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="p-6">
-            {tab === "overview" && <OverviewTab bid={bid} />}
-            {tab === "line-items" && <LineItemsTab bid={bid} />}
-            {tab === "assumptions" && <ListTab items={bid.assumptions} label="Assumption" />}
-            {tab === "clarifications" && <ListTab items={bid.clarifications} label="Clarification" />}
-            {tab === "exclusions" && <ListTab items={bid.exclusions} label="Exclusion" />}
-            {tab === "compliance" && <ComplianceTab />}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function OverviewTab({ bid }: { bid: typeof DEMO_BID }) {
-  return (
-    <div className="max-w-3xl space-y-8">
-      <div className="grid grid-cols-2 gap-6">
-        <Field label="Project" value={bid.projectName} />
-        <Field label="General Contractor" value={bid.gcName} />
-        <Field label="Primary Trade" value={bid.primaryTrade} />
-        <Field label="Bid Deadline" value={new Date(bid.bidDeadline).toLocaleDateString("en-US", { dateStyle: "full" })} />
-      </div>
-
-      <div>
-        <h3 className="mb-3 text-sm font-medium uppercase tracking-wider text-slate-500">Summary</h3>
-        <div className="grid grid-cols-4 gap-4">
-          <MiniStat label="Line items" value="5" />
-          <MiniStat label="Assumptions" value="4" />
-          <MiniStat label="Clarifications" value="4" />
-          <MiniStat label="Exclusions" value="6" />
-        </div>
-      </div>
-
-      <div>
-        <h3 className="mb-3 text-sm font-medium uppercase tracking-wider text-slate-500">Pricing (once entered)</h3>
-        <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500 dark:border-slate-700">
-          Fill in unit costs on the <button className="text-amber-600 underline">Line Items</button> tab to see totals here.
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function LineItemsTab({ bid }: { bid: typeof DEMO_BID }) {
-  return (
-    <div>
-      <div className="mb-4 flex items-center justify-between">
-        <p className="text-sm text-slate-500">
-          Confidence: <span className="badge-green mr-1">high</span> <span className="badge-amber mr-1">check</span> <span className="badge-red">verify</span> — click any row to jump to the source page.
-        </p>
-        <button className="btn-secondary px-3 py-1.5 text-sm">
-          <Plus className="h-4 w-4" />
-          Add line item
-        </button>
-      </div>
-
-      <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
-        <table className="w-full text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wider text-slate-500 dark:border-slate-800 dark:bg-slate-900/50">
-            <tr>
-              <th className="w-8 px-3 py-2"></th>
-              <th className="px-3 py-2 font-medium">Description</th>
-              <th className="w-20 px-3 py-2 font-medium">Qty</th>
-              <th className="w-16 px-3 py-2 font-medium">Unit</th>
-              <th className="w-32 px-3 py-2 font-medium">Unit cost</th>
-              <th className="w-32 px-3 py-2 font-medium">Total</th>
-              <th className="w-24 px-3 py-2 font-medium">Conf.</th>
-              <th className="w-8 px-3 py-2"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {bid.lineItems.map((li) => (
-              <tr key={li.id} className="group hover:bg-slate-50 dark:hover:bg-slate-900/50">
-                <td className="px-3 py-2 text-slate-300">
-                  <GripVertical className="h-4 w-4 cursor-grab" />
-                </td>
-                <td className="px-3 py-2">
-                  <div className="font-medium text-slate-900 dark:text-slate-100">{li.description}</div>
-                  {li.sourcePage && (
-                    <div className="mt-0.5 text-xs text-slate-400">
-                      p.{li.sourcePage}
-                    </div>
-                  )}
-                </td>
-                <td className="px-3 py-2 font-mono text-slate-600 dark:text-slate-400">{li.quantity.toLocaleString()}</td>
-                <td className="px-3 py-2 text-slate-600 dark:text-slate-400">{li.unit}</td>
-                <td className="px-3 py-2">
-                  <input className="input w-full py-1 font-mono" placeholder="$0.00" />
-                </td>
-                <td className="px-3 py-2 font-mono text-slate-600 dark:text-slate-400">$0.00</td>
-                <td className="px-3 py-2">
-                  <span className={confidenceClass(li.confidence)}>
-                    {(li.confidence * 100).toFixed(0)}%
-                  </span>
-                </td>
-                <td className="px-3 py-2">
-                  <button className="text-slate-300 opacity-0 hover:text-red-600 group-hover:opacity-100">
-                    <X className="h-4 w-4" />
-                  </button>
-                </td>
-              </tr>
+          <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-200 px-3 dark:border-slate-800">
+            {TABS.map((t) => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                aria-current={tab === t}
+                className={`whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${
+                  tab === t
+                    ? "border-amber-500 text-slate-900 dark:text-slate-100"
+                    : "border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-300"
+                }`}
+              >
+                {t}
+                {t === "Line Items" && draft.lineItems.length > 0 && (
+                  <span className="ml-1.5 font-mono text-xs text-slate-400">{draft.lineItems.length}</span>
+                )}
+              </button>
             ))}
-          </tbody>
-          <tfoot className="border-t border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50">
-            <tr>
-              <td colSpan={5} className="px-3 py-3 text-right text-sm text-slate-500">Subtotal</td>
-              <td className="px-3 py-3 font-mono font-semibold text-slate-900 dark:text-slate-100">$0.00</td>
-              <td colSpan={2}></td>
-            </tr>
-            <tr>
-              <td colSpan={5} className="px-3 py-2 text-right text-sm text-slate-500">Overhead (10%)</td>
-              <td className="px-3 py-2 font-mono text-slate-600">$0.00</td>
-              <td colSpan={2}></td>
-            </tr>
-            <tr>
-              <td colSpan={5} className="px-3 py-2 text-right text-sm text-slate-500">Profit (10%)</td>
-              <td className="px-3 py-2 font-mono text-slate-600">$0.00</td>
-              <td colSpan={2}></td>
-            </tr>
-            <tr>
-              <td colSpan={5} className="px-3 py-3 text-right text-sm font-semibold text-slate-900 dark:text-slate-100">Total bid</td>
-              <td className="px-3 py-3 font-mono text-lg font-bold text-slate-900 dark:text-slate-100">$0.00</td>
-              <td colSpan={2}></td>
-            </tr>
-          </tfoot>
-        </table>
+          </nav>
+
+          <div className="min-h-0 flex-1 overflow-auto p-5">
+            {notDrafted && tab !== "Overview" && tab !== "Compliance" ? (
+              <NotDrafted onDraft={() => void runDraft()} drafting={drafting} />
+            ) : (
+              <>
+                {tab === "Overview" && (
+                  <OverviewTab
+                    extraction={extraction}
+                    draft={draft}
+                    totals={totals}
+                    onJump={jumpToPage}
+                    onChange={updateDraft}
+                    notDrafted={notDrafted}
+                    onDraft={() => void runDraft()}
+                    drafting={drafting}
+                  />
+                )}
+                {tab === "Line Items" && (
+                  <LineItemsTab draft={draft} onChange={updateDraft} onJump={jumpToPage} totals={totals} />
+                )}
+                {tab === "Assumptions" && (
+                  <ClauseList
+                    items={draft.assumptions}
+                    onChange={(assumptions) => updateDraft((prev) => ({ ...prev, assumptions }))}
+                    addLabel="Add an assumption…"
+                    emptyHint="No assumptions yet. These protect you on site conditions, schedule, and GC coordination."
+                  />
+                )}
+                {tab === "Clarifications" && (
+                  <ClauseList
+                    items={draft.clarifications}
+                    onChange={(clarifications) => updateDraft((prev) => ({ ...prev, clarifications }))}
+                    addLabel="Add a clarification…"
+                    emptyHint="No clarifications yet. These are the questions to ask the GC before submitting."
+                  />
+                )}
+                {tab === "Exclusions" && (
+                  <ClauseList
+                    items={draft.exclusions}
+                    onChange={(exclusions) => updateDraft((prev) => ({ ...prev, exclusions }))}
+                    addLabel="Add an exclusion…"
+                    emptyHint="No exclusions yet. These carve out work you are not doing."
+                  />
+                )}
+                {tab === "Compliance" && <ComplianceTab extraction={extraction} />}
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-function ListTab({ items, label }: { items: string[]; label: string }) {
+function SaveIndicator({ state }: { state: string }) {
+  if (state === "saving") {
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-slate-500">
+        <Loader2 className="h-3 w-3 animate-spin" /> Saving…
+      </span>
+    );
+  }
+  if (state === "saved") {
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-emerald-600">
+        <Check className="h-3 w-3" /> Saved
+      </span>
+    );
+  }
+  if (state === "error") {
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-red-600">
+        <CloudOff className="h-3 w-3" /> Not saved
+      </span>
+    );
+  }
+  if (state === "dirty") return <span className="text-xs text-slate-400">Unsaved changes</span>;
+  return null;
+}
+
+function NotDrafted({ onDraft, drafting }: { onDraft: () => void; drafting: boolean }) {
   return (
-    <div className="max-w-3xl space-y-2">
-      {items.map((item, i) => (
-        <div key={i} className="group flex items-start gap-3 rounded-lg border border-slate-200 bg-white p-4 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900">
-          <div className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-            {i + 1}
-          </div>
-          <div className="flex-1 text-sm text-slate-800 dark:text-slate-200">{item}</div>
-          <button className="text-slate-300 opacity-0 hover:text-red-600 group-hover:opacity-100">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      ))}
-      <button className="btn-secondary w-full px-3 py-2 text-sm">
-        <Plus className="h-4 w-4" />
-        Add {label.toLowerCase()}
+    <div className="flex flex-col items-center py-16 text-center">
+      <Sparkles className="h-8 w-8 text-amber-500" />
+      <h3 className="mt-3 text-base font-semibold text-slate-900 dark:text-slate-100">
+        Response not drafted yet
+      </h3>
+      <p className="mt-1 max-w-sm text-sm text-slate-500">
+        The ITB has been read and the scope extracted. Draft the response to get line items,
+        assumptions, clarifications, and exclusions.
+      </p>
+      <button onClick={onDraft} disabled={drafting} className="btn-primary mt-5 px-4 py-2 text-sm">
+        {drafting && <Loader2 className="h-4 w-4 animate-spin" />}
+        {drafting ? "Drafting…" : "Draft response"}
       </button>
     </div>
   );
 }
 
-function ComplianceTab() {
+function Confidence({ value }: { value: number | null }) {
+  const tone = confidenceTone(value);
+  if (tone === "none") return null;
+  const cls = tone === "high" ? "badge-green" : tone === "medium" ? "badge-amber" : "badge-red";
+  return <span className={cls}>{Math.round((value ?? 0) * 100)}%</span>;
+}
+
+function OverviewTab({
+  extraction, draft, totals, onJump, onChange, notDrafted, onDraft, drafting,
+}: {
+  extraction: ExtractionResult;
+  draft: EditableBid;
+  totals: ReturnType<typeof computeTotals>;
+  onJump: (p: number | null) => void;
+  onChange: React.Dispatch<React.SetStateAction<EditableBid>>;
+  notDrafted: boolean;
+  onDraft: () => void;
+  drafting: boolean;
+}) {
+  const m = extraction?.metadata;
+  const unpriced = unpricedCount(draft.lineItems);
+
   return (
-    <div className="max-w-3xl space-y-6">
-      <ComplianceItem label="Bond" value="Required — 10% of bid" status="check" />
-      <ComplianceItem label="Insurance" value="$2M GL, $5M umbrella, Workers' Comp" status="ok" />
-      <ComplianceItem label="Prevailing wage" value="Not required" status="ok" />
-      <ComplianceItem label="Davis-Bacon" value="Not applicable" status="ok" />
-      <ComplianceItem label="Prequalification" value="Required — submit form by 07/22" status="warn" />
+    <div className="space-y-6">
+      {notDrafted && (
+        <div className="card flex items-center justify-between gap-3 p-4">
+          <div className="text-sm text-slate-600 dark:text-slate-400">
+            Scope extracted. Draft the response to get line items and clauses.
+          </div>
+          <button onClick={onDraft} disabled={drafting} className="btn-primary shrink-0 px-3 py-1.5 text-xs">
+            {drafting && <Loader2 className="h-3 w-3 animate-spin" />}
+            {drafting ? "Drafting…" : "Draft response"}
+          </button>
+        </div>
+      )}
+
+      <section>
+        <h2 className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">Project</h2>
+        <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+          <Field label="Project" value={m?.projectName} />
+          <Field label="Address" value={m?.projectAddress} />
+          <Field label="General Contractor" value={m?.generalContractor} />
+          <Field label="Owner" value={m?.owner} />
+          <Field label="Bid deadline" value={m?.bidDeadline} />
+          <Field label="RFI deadline" value={m?.rfiDeadline} />
+          <Field label="Walkthrough" value={m?.walkthroughDate} />
+          <Field
+            label="Contact"
+            value={[m?.contactName, m?.contactEmail, m?.contactPhone].filter(Boolean).join(" · ") || null}
+          />
+        </dl>
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">
+          Extracted scope <span className="font-normal text-slate-400">· click to see the source</span>
+        </h2>
+        <ul className="space-y-1.5">
+          {(extraction?.scope ?? []).map((s) => (
+            <li key={s.id}>
+              <button
+                onClick={() => onJump(s.sourcePage)}
+                disabled={!s.sourcePage}
+                className="group flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left hover:bg-slate-50 disabled:cursor-default dark:hover:bg-slate-800/50"
+              >
+                <Confidence value={s.confidence} />
+                <span className="flex-1 text-sm text-slate-700 dark:text-slate-300">
+                  {s.description}
+                  {s.quantity !== null && (
+                    <span className="ml-1.5 font-mono text-xs text-slate-400">
+                      {s.quantity} {s.unit}
+                    </span>
+                  )}
+                </span>
+                {s.sourcePage && (
+                  <span className="flex shrink-0 items-center gap-1 font-mono text-xs text-slate-400 group-hover:text-amber-600">
+                    <FileText className="h-3 w-3" />p.{s.sourcePage}
+                  </span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {!notDrafted && (
+        <section>
+          <h2 className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">Pricing</h2>
+          {unpriced > 0 && (
+            <p className="mb-3 text-xs text-amber-600 dark:text-amber-400">
+              {unpriced} of {draft.lineItems.length} line items still need a unit price.
+            </p>
+          )}
+          <div className="card divide-y divide-slate-100 dark:divide-slate-800">
+            <Row label="Subtotal" value={formatCents(totals.subtotalCents)} />
+            <PercentRow
+              label="Overhead"
+              percent={draft.overheadPercent}
+              cents={totals.overheadCents}
+              onChange={(overheadPercent) => onChange((prev) => ({ ...prev, overheadPercent }))}
+            />
+            <PercentRow
+              label="Profit"
+              percent={draft.profitPercent}
+              cents={totals.profitCents}
+              onChange={(profitPercent) => onChange((prev) => ({ ...prev, profitPercent }))}
+            />
+            <Row label="Total" value={formatCents(totals.totalCents)} strong />
+          </div>
+          <label className="mt-4 flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+            Quote valid for
+            <input
+              type="number"
+              min={1}
+              value={draft.validityDays}
+              onChange={(e) => { const v = Math.max(1, Number(e.target.value) || 1); onChange((prev) => ({ ...prev, validityDays: v })); }}
+              className="input w-20 py-1 text-center font-mono"
+            />
+            days
+          </label>
+        </section>
+      )}
     </div>
   );
 }
 
-function ComplianceItem({ label, value, status }: { label: string; value: string; status: "ok" | "warn" | "check" }) {
-  const cls = status === "ok" ? "badge-green" : status === "warn" ? "badge-amber" : "badge-slate";
-  const text = status === "ok" ? "Confirmed" : status === "warn" ? "Action needed" : "Verify";
+function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
-    <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-      <div>
-        <div className="text-sm font-medium text-slate-900 dark:text-slate-100">{label}</div>
-        <div className="mt-0.5 text-sm text-slate-500">{value}</div>
+    <div className="flex items-center justify-between px-4 py-2.5">
+      <span className={`text-sm ${strong ? "font-semibold text-slate-900 dark:text-slate-100" : "text-slate-600 dark:text-slate-400"}`}>
+        {label}
+      </span>
+      <span className={`font-mono text-sm ${strong ? "font-semibold text-slate-900 dark:text-slate-100" : "text-slate-700 dark:text-slate-300"}`}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function PercentRow({
+  label, percent, cents, onChange,
+}: {
+  label: string;
+  percent: number;
+  cents: number;
+  onChange: (n: number) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between px-4 py-2.5">
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-slate-600 dark:text-slate-400">{label}</span>
+        <input
+          type="number"
+          min={0}
+          max={100}
+          step={0.5}
+          value={percent}
+          onChange={(e) => onChange(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+          className="input w-16 py-0.5 text-center font-mono text-xs"
+          aria-label={`${label} percent`}
+        />
+        <span className="text-xs text-slate-400">%</span>
       </div>
-      <span className={cls}>{text}</span>
+      <span className="font-mono text-sm text-slate-700 dark:text-slate-300">{formatCents(cents)}</span>
     </div>
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+function Field({ label, value }: { label: string; value?: string | null }) {
   return (
     <div>
-      <div className="text-xs font-medium uppercase tracking-wider text-slate-500">{label}</div>
-      <div className="mt-1 text-sm text-slate-900 dark:text-slate-100">{value}</div>
+      <dt className="text-xs text-slate-500">{label}</dt>
+      <dd className="mt-0.5 text-sm text-slate-900 dark:text-slate-100">
+        {value ?? <span className="text-slate-400">Not found</span>}
+      </dd>
     </div>
   );
 }
 
-function MiniStat({ label, value }: { label: string; value: string }) {
+function LineItemsTab({
+  draft, onChange, onJump, totals,
+}: {
+  draft: EditableBid;
+  onChange: React.Dispatch<React.SetStateAction<EditableBid>>;
+  onJump: (p: number | null) => void;
+  totals: ReturnType<typeof computeTotals>;
+}) {
+  // Functional update: two fields blurred in the same tick would otherwise each
+  // build from the same stale `draft` closure, and the second would drop the first.
+  function update(index: number, patch: Partial<BidLineItem>) {
+    onChange((prev) => ({
+      ...prev,
+      lineItems: prev.lineItems.map((li, i) =>
+        i === index ? withRecalculatedTotal({ ...li, ...patch }) : li,
+      ),
+    }));
+  }
+
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
-      <div className="text-2xl font-semibold text-slate-900 dark:text-slate-100">{value}</div>
-      <div className="mt-0.5 text-xs text-slate-500">{label}</div>
+    <div>
+      <div className="card overflow-hidden">
+        <div className="overflow-x-auto">
+          {/* min-width keeps the description column readable in the split view;
+              without it the fixed columns crush it to a few characters. */}
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-900/50">
+              <tr>
+                <th className="min-w-[240px] px-3 py-2 font-medium">Description</th>
+                <th className="w-24 px-3 py-2 text-right font-medium">Qty</th>
+                <th className="w-20 px-3 py-2 font-medium">Unit</th>
+                <th className="w-32 px-3 py-2 text-right font-medium">Unit cost</th>
+                <th className="w-32 px-3 py-2 text-right font-medium">Total</th>
+                <th className="w-16 px-3 py-2 font-medium">Src</th>
+                <th className="w-10 px-3 py-2" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {draft.lineItems.map((li, i) => (
+                <tr key={li.id} className="group">
+                  <td className="min-w-[240px] px-3 py-1.5 align-top">
+                    <input
+                      value={li.description}
+                      onChange={(e) => update(i, { description: e.target.value })}
+                      className="w-full bg-transparent py-1 text-sm text-slate-900 outline-none dark:text-slate-100"
+                      placeholder="Description"
+                      aria-label="Description"
+                    />
+                    {/* The model flags anything needing the estimator's input. */}
+                    {li.notes && (
+                      <p className="pb-1 text-xs leading-snug text-amber-600 dark:text-amber-400">{li.notes}</p>
+                    )}
+                  </td>
+                  <td className="px-3 py-1.5 align-top">
+                    <input
+                      defaultValue={String(li.quantity)}
+                      onBlur={(e) => {
+                        const q = parseQuantity(e.target.value);
+                        if (q === null) e.target.value = String(li.quantity);
+                        else update(i, { quantity: q });
+                      }}
+                      className="w-full bg-transparent py-1 text-right font-mono text-sm outline-none"
+                      inputMode="decimal"
+                      aria-label="Quantity"
+                    />
+                  </td>
+                  <td className="px-3 py-1.5 align-top">
+                    <input
+                      value={li.unit}
+                      onChange={(e) => update(i, { unit: e.target.value })}
+                      className="w-full bg-transparent py-1 font-mono text-sm outline-none"
+                      aria-label="Unit"
+                    />
+                  </td>
+                  <td className="px-3 py-1.5 align-top">
+                    <input
+                      defaultValue={formatCentsForInput(li.unitCostCents)}
+                      onBlur={(e) => {
+                        const cents = parseDollarsToCents(e.target.value);
+                        if (cents === null) {
+                          e.target.value = formatCentsForInput(li.unitCostCents);
+                        } else {
+                          update(i, { unitCostCents: cents });
+                          e.target.value = formatCentsForInput(cents);
+                        }
+                      }}
+                      className={`w-full bg-transparent py-1 text-right font-mono text-sm outline-none ${
+                        li.unitCostCents === 0 ? "text-amber-600 dark:text-amber-400" : ""
+                      }`}
+                      inputMode="decimal"
+                      aria-label="Unit cost"
+                    />
+                  </td>
+                  <td className="px-3 py-1.5 text-right align-top font-mono text-sm text-slate-900 dark:text-slate-100">
+                    {formatCents(li.totalCostCents)}
+                  </td>
+                  <td className="px-3 py-1.5">
+                    {li.sourcePage ? (
+                      <button
+                        onClick={() => onJump(li.sourcePage)}
+                        className="font-mono text-xs text-slate-400 hover:text-amber-600"
+                      >
+                        p.{li.sourcePage}
+                      </button>
+                    ) : (
+                      <span className="font-mono text-xs text-slate-300">—</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <button
+                      onClick={() =>
+                        onChange((prev) => ({ ...prev, lineItems: prev.lineItems.filter((_, idx) => idx !== i) }))
+                      }
+                      aria-label="Delete line item"
+                      className="rounded p-1 text-slate-300 opacity-0 hover:bg-slate-100 hover:text-red-600 group-hover:opacity-100 dark:hover:bg-slate-800"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot className="border-t border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50">
+              <tr>
+                <td colSpan={4} className="px-3 py-2 text-right text-sm font-medium text-slate-600 dark:text-slate-400">
+                  Subtotal
+                </td>
+                <td className="px-3 py-2 text-right font-mono text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  {formatCents(totals.subtotalCents)}
+                </td>
+                <td colSpan={2} />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <button
+        onClick={() =>
+          onChange((prev) => ({ ...prev, lineItems: [...prev.lineItems, blankLineItem(crypto.randomUUID())] }))
+        }
+        className="btn-secondary mt-3 px-3 py-1.5 text-xs"
+      >
+        <Plus className="h-3.5 w-3.5" />
+        Add line item
+      </button>
     </div>
+  );
+}
+
+function ComplianceTab({ extraction }: { extraction: ExtractionResult }) {
+  const c = extraction?.compliance;
+  if (!c) return <p className="text-sm text-slate-500">No compliance data extracted.</p>;
+
+  const flags: { label: string; on: boolean; detail?: string | null }[] = [
+    { label: "Bid bond required", on: c.bondRequired, detail: c.bondPercent ? `${c.bondPercent}%` : null },
+    { label: "Insurance required", on: c.insuranceRequired },
+    { label: "Prevailing wage", on: c.prevailingWage },
+    { label: "Davis-Bacon", on: c.davisBacon },
+    { label: "Union required", on: c.unionRequired },
+    { label: "Prequalification required", on: c.prequalRequired },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <section>
+        <h2 className="mb-3 text-sm font-semibold text-slate-900 dark:text-slate-100">Requirements</h2>
+        <div className="card divide-y divide-slate-100 dark:divide-slate-800">
+          {flags.map((f) => (
+            <div key={f.label} className="flex items-center justify-between px-4 py-2.5">
+              <span className="text-sm text-slate-700 dark:text-slate-300">{f.label}</span>
+              <span className={f.on ? "badge-amber" : "badge-slate"}>
+                {f.on ? (f.detail ? `Yes · ${f.detail}` : "Yes") : "No"}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <ListSection title="Insurance limits" items={c.insuranceLimits} />
+      <ListSection title="Licensing" items={c.licenseRequirements} />
+      <ListSection title="Other requirements" items={c.otherRequirements} />
+    </div>
+  );
+}
+
+function ListSection({ title, items }: { title: string; items: string[] }) {
+  if (!items?.length) return null;
+  return (
+    <section>
+      <h2 className="mb-2 text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
+      <ul className="space-y-1 pl-4 text-sm text-slate-600 dark:text-slate-400">
+        {items.map((i, idx) => (
+          <li key={idx} className="list-disc marker:text-slate-300">{i}</li>
+        ))}
+      </ul>
+    </section>
   );
 }

@@ -1,205 +1,247 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { UploadCloud, FileText, Loader2, CheckCircle2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
+import { UploadCloud, FileText, Loader2, CheckCircle2, ArrowLeft, AlertCircle, X } from "lucide-react";
+import { api, ApiError } from "@/lib/api";
+import { useRequireAuth } from "@/lib/auth-context";
 
-type Stage = "idle" | "uploading" | "parsing" | "extracting" | "generating" | "done" | "error";
+/**
+ * Stages reflect real work, not a timer: `uploading` tracks actual bytes sent,
+ * `extracting` and `drafting` each correspond to one awaited server call.
+ */
+type Stage = "idle" | "uploading" | "extracting" | "drafting" | "done" | "error";
 
-const STAGE_LABELS: Record<Stage, string> = {
-  idle: "",
-  uploading: "Uploading PDF...",
-  parsing: "Reading pages...",
-  extracting: "Extracting scope, deadlines, requirements...",
-  generating: "Drafting bid response...",
-  done: "Ready.",
-  error: "Something went wrong.",
-};
+const MAX_BYTES = 50 * 1024 * 1024; // matches the API's multipart limit
+
+const STEPS: { key: Stage; label: string }[] = [
+  { key: "uploading", label: "Uploading PDF" },
+  { key: "extracting", label: "Reading pages and extracting scope" },
+  { key: "drafting", label: "Drafting bid response" },
+];
+
+const ORDER: Stage[] = ["idle", "uploading", "extracting", "drafting", "done"];
+const rank = (s: Stage) => ORDER.indexOf(s);
 
 export default function NewBidPage() {
+  useRequireAuth();
   const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const [file, setFile] = useState<File | null>(null);
   const [stage, setStage] = useState<Stage>("idle");
+  const [percent, setPercent] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  /** Set once extraction lands, so a drafting failure can retry without re-uploading. */
+  const [bidId, setBidId] = useState<string | null>(null);
 
-  async function handleSubmit() {
+  const busy = stage === "uploading" || stage === "extracting" || stage === "drafting";
+
+  const accept = useCallback((chosen: File | undefined | null) => {
+    if (!chosen) return;
+    if (!chosen.name.toLowerCase().endsWith(".pdf") && chosen.type !== "application/pdf") {
+      setError("That file isn't a PDF.");
+      return;
+    }
+    if (chosen.size > MAX_BYTES) {
+      setError(`That file is ${(chosen.size / 1024 / 1024).toFixed(0)} MB — the limit is 50 MB.`);
+      return;
+    }
+    setError(null);
+    setFile(chosen);
+  }, []);
+
+  async function draft(id: string) {
+    setStage("drafting");
+    await api.generateBid(id);
+    setStage("done");
+    toast.success("Bid response drafted");
+    router.push(`/bids/${id}`);
+  }
+
+  async function run() {
     if (!file) return;
-    setStage("uploading");
-    const fd = new FormData();
-    fd.append("file", file);
-
+    setError(null);
+    setPercent(0);
     try {
-      // Simulate progressive stages for user feedback
-      setTimeout(() => setStage("parsing"), 400);
-      setTimeout(() => setStage("extracting"), 1200);
-      setTimeout(() => setStage("generating"), 3000);
-
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/uploads/itb`, {
-        method: "POST",
-        body: fd,
+      setStage("uploading");
+      const bid = await api.uploadItb(file, (p) => {
+        setPercent(p);
+        // Bytes are sent; the server is now reading the PDF and calling the model.
+        if (p >= 100) setStage("extracting");
       });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      setStage("done");
-      toast.success("Bid response drafted");
-      setTimeout(() => router.push(`/bids/${data.id}`), 800);
+      setBidId(bid.id);
+      await draft(bid.id);
     } catch (err) {
       setStage("error");
-      toast.error("Failed to process ITB", { description: String(err) });
+      const message = err instanceof ApiError ? err.message : "Something went wrong.";
+      setError(message);
+      toast.error(message);
     }
   }
 
-  function onDrop(e: React.DragEvent) {
-    e.preventDefault();
-    setDragging(false);
-    const dropped = e.dataTransfer.files[0];
-    if (dropped && dropped.type === "application/pdf") setFile(dropped);
-    else toast.error("Please upload a PDF");
+  async function retryDraft() {
+    if (!bidId) return;
+    setError(null);
+    try {
+      await draft(bidId);
+    } catch (err) {
+      setStage("error");
+      setError(err instanceof ApiError ? err.message : "Something went wrong.");
+    }
   }
 
-  const processing = stage !== "idle" && stage !== "error" && stage !== "done";
-
   return (
-    <div className="mx-auto max-w-3xl px-6 py-12">
-      <Link href="/dashboard" className="mb-6 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 dark:hover:text-slate-100">
+    <div className="mx-auto max-w-2xl px-8 py-8">
+      <Link
+        href="/dashboard"
+        className="mb-6 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 dark:hover:text-slate-200"
+      >
         <ArrowLeft className="h-4 w-4" />
-        Back to bid board
+        Bid Board
       </Link>
 
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">New bid</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Upload the ITB PDF the GC sent you. We&apos;ll extract the scope and draft a response.
-        </p>
-      </div>
+      <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">New bid</h1>
+      <p className="mt-1 text-sm text-slate-500">
+        Drop in the ITB PDF. BidWright reads the scope, quantities, deadlines, and compliance
+        requirements, then drafts a response you can edit.
+      </p>
 
-      {stage === "idle" && (
-        <div
-          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={onDrop}
-          className={`
-            flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-16 text-center transition-colors
-            ${dragging ? "border-amber-500 bg-amber-50 dark:bg-amber-950/20"
-                       : "border-slate-300 bg-white hover:border-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-slate-600"}
-          `}
-        >
-          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-600">
-            <UploadCloud className="h-7 w-7" />
-          </div>
-          <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">
-            Drop your ITB PDF here
-          </h3>
-          <p className="mt-1 text-sm text-slate-500">
-            Or click below to browse
-          </p>
-
-          <label className="btn-primary mt-6 cursor-pointer px-4 py-2 text-sm">
-            Choose file
+      {!busy && stage !== "done" && (
+        <>
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragging(false);
+              accept(e.dataTransfer.files?.[0]);
+            }}
+            onClick={() => inputRef.current?.click()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
+            }}
+            className={`mt-6 flex cursor-pointer flex-col items-center rounded-xl border-2 border-dashed px-6 py-14 text-center transition-colors ${
+              dragging
+                ? "border-amber-500 bg-amber-50/50 dark:bg-amber-950/20"
+                : "border-slate-300 hover:border-slate-400 dark:border-slate-700 dark:hover:border-slate-600"
+            }`}
+          >
+            <UploadCloud className={`h-9 w-9 ${dragging ? "text-amber-500" : "text-slate-400"}`} />
+            <p className="mt-3 text-sm font-medium text-slate-900 dark:text-slate-100">
+              Drop your ITB PDF here
+            </p>
+            <p className="mt-1 text-xs text-slate-500">or click to browse · PDF up to 50 MB</p>
             <input
+              ref={inputRef}
               type="file"
-              accept="application/pdf"
-              className="sr-only"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              accept="application/pdf,.pdf"
+              className="hidden"
+              onChange={(e) => accept(e.target.files?.[0])}
             />
-          </label>
+          </div>
 
           {file && (
-            <div className="mt-6 flex items-center gap-2 rounded-md bg-slate-100 px-3 py-2 text-sm dark:bg-slate-800">
-              <FileText className="h-4 w-4 text-slate-500" />
-              <span className="font-medium text-slate-900 dark:text-slate-100">{file.name}</span>
-              <span className="text-slate-500">({(file.size / 1024 / 1024).toFixed(1)} MB)</span>
+            <div className="card mt-4 flex items-center gap-3 p-4">
+              <FileText className="h-5 w-5 shrink-0 text-amber-600" />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+                  {file.name}
+                </div>
+                <div className="font-mono text-xs text-slate-500">
+                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                </div>
+              </div>
               <button
                 onClick={() => setFile(null)}
-                className="ml-2 text-xs text-slate-500 hover:text-red-600"
+                aria-label="Remove file"
+                className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
               >
-                Remove
+                <X className="h-4 w-4" />
               </button>
             </div>
           )}
 
-          <p className="mt-8 text-xs text-slate-400">
-            PDFs only · Up to 50 MB · Nothing is uploaded until you click generate
-          </p>
-        </div>
-      )}
-
-      {processing && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center dark:border-slate-800 dark:bg-slate-900">
-          <div className="mb-6 flex justify-center">
-            <Loader2 className="h-10 w-10 animate-spin text-amber-500" />
-          </div>
-          <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">
-            {STAGE_LABELS[stage]}
-          </h3>
-          <p className="mt-2 text-sm text-slate-500">
-            This usually takes 45-90 seconds. Don&apos;t close the tab.
-          </p>
-
-          <div className="mx-auto mt-8 max-w-xs">
-            <ProgressSteps current={stage} />
-          </div>
-        </div>
-      )}
-
-      {stage === "done" && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-12 text-center dark:border-emerald-900 dark:bg-emerald-950/30">
-          <div className="mb-4 flex justify-center">
-            <CheckCircle2 className="h-12 w-12 text-emerald-600" />
-          </div>
-          <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">
-            Bid response ready
-          </h3>
-          <p className="mt-1 text-sm text-slate-500">Redirecting to the editor...</p>
-        </div>
-      )}
-
-      {stage === "error" && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-8 dark:border-red-900 dark:bg-red-950/30">
-          <h3 className="text-base font-medium text-red-900 dark:text-red-100">
-            Processing failed
-          </h3>
-          <p className="mt-1 text-sm text-red-700 dark:text-red-300">
-            The PDF couldn&apos;t be processed. This can happen with scanned or password-protected files.
-          </p>
-          <button onClick={() => { setStage("idle"); setFile(null); }} className="btn-secondary mt-4 px-3 py-1.5 text-sm">
-            Try again
-          </button>
-        </div>
-      )}
-
-      {stage === "idle" && file && (
-        <div className="mt-6 flex justify-end">
-          <button onClick={handleSubmit} className="btn-primary px-5 py-2.5 text-sm">
-            Generate bid response
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ProgressSteps({ current }: { current: Stage }) {
-  const steps: Stage[] = ["uploading", "parsing", "extracting", "generating"];
-  const currentIdx = steps.indexOf(current);
-  return (
-    <div className="space-y-2 text-left">
-      {steps.map((s, i) => (
-        <div key={s} className="flex items-center gap-2 text-sm">
-          {i < currentIdx ? (
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-          ) : i === currentIdx ? (
-            <Loader2 className="h-4 w-4 animate-spin text-amber-500" />
-          ) : (
-            <div className="h-4 w-4 rounded-full border-2 border-slate-300 dark:border-slate-700" />
+          {error && (
+            <div role="alert" className="mt-4 flex items-start gap-2 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-300">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="flex-1">
+                {error}
+                {bidId && (
+                  <button onClick={() => void retryDraft()} className="ml-2 font-medium underline">
+                    Retry drafting
+                  </button>
+                )}
+              </div>
+            </div>
           )}
-          <span className={i <= currentIdx ? "text-slate-900 dark:text-slate-100" : "text-slate-400"}>
-            {STAGE_LABELS[s]}
-          </span>
+
+          <button
+            onClick={() => void run()}
+            disabled={!file}
+            className="btn-primary mt-6 w-full px-4 py-2.5 text-sm"
+          >
+            Extract and draft response
+          </button>
+        </>
+      )}
+
+      {(busy || stage === "done") && (
+        <div className="card mt-6 p-6">
+          <ol className="space-y-4">
+            {STEPS.map((step) => {
+              const state =
+                rank(stage) > rank(step.key) || stage === "done"
+                  ? "done"
+                  : stage === step.key
+                    ? "active"
+                    : "pending";
+              return (
+                <li key={step.key} className="flex items-center gap-3">
+                  {state === "done" ? (
+                    <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+                  ) : state === "active" ? (
+                    <Loader2 className="h-5 w-5 shrink-0 animate-spin text-amber-500" />
+                  ) : (
+                    <div className="h-5 w-5 shrink-0 rounded-full border-2 border-slate-200 dark:border-slate-700" />
+                  )}
+                  <span
+                    className={
+                      state === "pending"
+                        ? "text-sm text-slate-400"
+                        : "text-sm text-slate-900 dark:text-slate-100"
+                    }
+                  >
+                    {step.label}
+                    {step.key === "uploading" && stage === "uploading" && ` — ${percent}%`}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+
+          {stage === "uploading" && (
+            <div className="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+              <div
+                className="h-full rounded-full bg-amber-500 transition-all duration-200"
+                style={{ width: `${percent}%` }}
+              />
+            </div>
+          )}
+
+          <p className="mt-5 text-xs text-slate-500">
+            Reading and drafting usually takes under a minute. Large ITBs take longer.
+          </p>
         </div>
-      ))}
+      )}
     </div>
   );
 }

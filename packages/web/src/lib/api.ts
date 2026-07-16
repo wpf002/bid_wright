@@ -180,9 +180,65 @@ export const api = {
 
   deleteBid: (id: string) => request<void>(`/api/bids/${id}`, { method: "DELETE" }),
 
-  async uploadItb(file: File): Promise<BidRow> {
-    const form = new FormData();
-    form.append("file", file);
-    return request<BidRow>("/api/uploads/itb", { method: "POST", body: form });
+  /**
+   * Upload + extract. Uses XHR rather than fetch because only XHR reports
+   * upload progress, and ITBs are large enough that a real percentage matters.
+   * Retries once through the refresh path on a 401.
+   */
+  async uploadItb(file: File, onProgress?: (percent: number) => void): Promise<BidRow> {
+    const attempt = () =>
+      new Promise<{ status: number; body: string }>((resolve, reject) => {
+        const form = new FormData();
+        form.append("file", file);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `${API_URL}/api/uploads/itb`);
+        const access = tokens.access;
+        if (access) xhr.setRequestHeader("authorization", `Bearer ${access}`);
+
+        if (onProgress) {
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+          };
+        }
+        xhr.onload = () => resolve({ status: xhr.status, body: xhr.responseText });
+        xhr.onerror = () => reject(new ApiError("Network error during upload", 0));
+        xhr.send(form);
+      });
+
+    let res = await attempt();
+    if (res.status === 401 && (await refreshOnce())) res = await attempt();
+
+    if (res.status < 200 || res.status >= 300) {
+      let message = `Upload failed (${res.status})`;
+      try {
+        const parsed = JSON.parse(res.body);
+        if (typeof parsed.error === "string") message = parsed.error;
+      } catch {
+        /* keep the default */
+      }
+      throw new ApiError(message, res.status);
+    }
+    return JSON.parse(res.body) as BidRow;
+  },
+
+  /** Draft the response from an already-extracted bid. */
+  generateBid: (id: string) => request<BidRow>(`/api/bids/${id}/generate`, { method: "POST" }),
+
+  /** Owner-scoped URL for a bid's source PDF. */
+  pdfUrl: (bidId: string) => `${API_URL}/api/uploads/${bidId}/file`,
+
+  /** Fetch the source PDF as bytes (pdf.js needs the data, and the route is auth'd). */
+  async fetchPdf(bidId: string): Promise<ArrayBuffer> {
+    const run = async () => {
+      const headers = new Headers();
+      const access = tokens.access;
+      if (access) headers.set("authorization", `Bearer ${access}`);
+      return fetch(`${API_URL}/api/uploads/${bidId}/file`, { headers });
+    };
+    let res = await run();
+    if (res.status === 401 && (await refreshOnce())) res = await run();
+    if (!res.ok) throw new ApiError(`Could not load PDF (${res.status})`, res.status);
+    return res.arrayBuffer();
   },
 };

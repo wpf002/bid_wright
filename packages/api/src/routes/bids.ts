@@ -2,6 +2,8 @@ import type { FastifyInstance } from "fastify";
 import { db, bids } from "@bidwright/db";
 import { eq, and, desc } from "drizzle-orm";
 import { z } from "zod";
+import { generateBidResponse } from "@bidwright/core";
+import type { ExtractionResult } from "@bidwright/shared";
 import { requireAuth, currentUserId } from "../auth/middleware";
 
 /**
@@ -58,6 +60,47 @@ export async function bidRoutes(app: FastifyInstance) {
       .returning();
     if (!updated) return reply.status(404).send({ error: "Not found" });
     return updated;
+  });
+
+  /**
+   * Draft the response from this bid's stored extraction. Split out from upload
+   * so the client can show real progress and retry generation without
+   * re-running (or re-paying for) extraction.
+   */
+  app.post<{ Params: { id: string } }>("/:id/generate", async (req, reply) => {
+    const [row] = await db
+      .select()
+      .from(bids)
+      .where(and(eq(bids.id, req.params.id), eq(bids.userId, currentUserId(req))));
+    if (!row) return reply.status(404).send({ error: "Not found" });
+
+    try {
+      const draft = await generateBidResponse(
+        row.extraction as ExtractionResult,
+        row.itbFileName,
+      );
+      const [updated] = await db
+        .update(bids)
+        .set({
+          lineItems: draft.lineItems,
+          assumptions: draft.assumptions,
+          clarifications: draft.clarifications,
+          exclusions: draft.exclusions,
+          subtotalCents: draft.subtotalCents,
+          overheadPercent: draft.overheadPercent,
+          profitPercent: draft.profitPercent,
+          totalCents: draft.totalCents,
+          validityDays: draft.validityDays,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(bids.id, req.params.id), eq(bids.userId, currentUserId(req))))
+        .returning();
+      return updated;
+    } catch (err) {
+      app.log.error(err);
+      // The extraction survives; the client can retry generation alone.
+      return reply.status(500).send({ error: "We couldn't draft the response. Please try again." });
+    }
   });
 
   app.delete<{ Params: { id: string } }>("/:id", async (req, reply) => {

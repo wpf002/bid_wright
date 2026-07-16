@@ -18,6 +18,9 @@ export function loadEnv(startDir: string = process.cwd()): string | null {
     const candidate = path.join(dir, ".env");
     if (fs.existsSync(candidate)) {
       config({ path: candidate });
+      // Publish the repo root so relative paths (e.g. UPLOAD_DIR) resolve
+      // against it rather than whichever package npm set as cwd.
+      process.env.BIDWRIGHT_ROOT ??= dir;
       return candidate;
     }
     const parent = path.dirname(dir);
