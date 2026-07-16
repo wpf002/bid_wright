@@ -15,4 +15,6 @@ sample-itbs/*.pdf
 !sample-itbs/.gitkeep
 # Uploaded ITB PDFs (local storage backend)
 uploads/
+# Copied from node_modules by scripts/copy-pdf-worker.mjs
+packages/web/public/pdf.worker.min.mjs
 next-env.d.ts

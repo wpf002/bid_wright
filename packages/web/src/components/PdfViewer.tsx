@@ -43,12 +43,11 @@ export function PdfViewer({ bidId, page, onPageChange, jumpNonce }: Props) {
       setError(null);
       try {
         const pdfjs = await import("pdfjs-dist");
-        // Resolve the worker from the installed package so it always matches
-        // the API version; a CDN copy silently drifts and then throws.
-        pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-          "pdfjs-dist/build/pdf.worker.min.mjs",
-          import.meta.url,
-        ).toString();
+        // Served from public/, copied there from the installed pdfjs-dist by
+        // scripts/copy-pdf-worker.mjs on predev/prebuild. Importing it through
+        // webpack instead would drag a 1.3 MB minified bundle through the
+        // parser on every build.
+        pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
         const data = await api.fetchPdf(bidId);
         if (cancelled) return;
