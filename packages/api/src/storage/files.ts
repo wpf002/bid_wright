@@ -20,17 +20,23 @@ export function uploadDir(): string {
   return configured ? path.resolve(root, configured) : path.join(root, "uploads");
 }
 
-/** Storage keys are opaque and generated, never derived from user filenames. */
-export function newStorageKey(): string {
-  return `${randomUUID()}.pdf`;
+/**
+ * Storage keys are opaque and generated, never derived from user filenames —
+ * a filename is attacker-controlled and would be a path-traversal vector.
+ */
+export function newStorageKey(ext = "pdf"): string {
+  return `${randomUUID()}.${ext.replace(/[^a-z0-9]/gi, "").toLowerCase() || "bin"}`;
 }
 
-export async function savePdf(key: string, data: Buffer): Promise<string> {
+export async function saveFile(key: string, data: Buffer): Promise<string> {
   await fs.mkdir(uploadDir(), { recursive: true });
   const full = resolveKey(key);
   await fs.writeFile(full, data);
   return full;
 }
+
+/** Kept as the ITB-facing name; letterheads use saveFile directly. */
+export const savePdf = saveFile;
 
 /**
  * Resolve a storage key to an absolute path, refusing anything that escapes
@@ -46,11 +52,11 @@ export function resolveKey(key: string): string {
   return full;
 }
 
-export async function readPdf(key: string): Promise<Buffer> {
+export async function readFile(key: string): Promise<Buffer> {
   return fs.readFile(resolveKey(key));
 }
 
-export async function pdfExists(key: string): Promise<boolean> {
+export async function fileExists(key: string): Promise<boolean> {
   try {
     await fs.access(resolveKey(key));
     return true;
@@ -59,6 +65,25 @@ export async function pdfExists(key: string): Promise<boolean> {
   }
 }
 
-export async function deletePdf(key: string): Promise<void> {
+export async function deleteFile(key: string): Promise<void> {
   await fs.rm(resolveKey(key), { force: true });
+}
+
+export const readPdf = readFile;
+export const pdfExists = fileExists;
+export const deletePdf = deleteFile;
+
+/**
+ * Image types we accept for a letterhead, by magic bytes. Trusting the declared
+ * content-type would let an attacker store arbitrary bytes we later serve back
+ * with an image content-type.
+ */
+export function sniffImageType(buffer: Buffer): "image/png" | "image/jpeg" | null {
+  if (buffer.length > 8 && buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+    return "image/png";
+  }
+  if (buffer.length > 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return "image/jpeg";
+  }
+  return null;
 }

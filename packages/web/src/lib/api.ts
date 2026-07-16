@@ -123,6 +123,17 @@ export interface GcHistory {
   rate: number | null;
 }
 
+export interface CompanyProfile {
+  companyName: string | null;
+  brandColor: string | null;
+  companyAddress: string | null;
+  companyPhone: string | null;
+  companyEmail: string | null;
+  companyLicense: string | null;
+  proposalTerms: string | null;
+  hasLogo: boolean;
+}
+
 export interface InboxAddress {
   address: string;
   /** False until an inbound domain is configured on the server. */
@@ -339,6 +350,39 @@ export const api = {
   deleteClause: (id: string) => request<void>(`/api/clauses/${id}`, { method: "DELETE" }),
 
   analytics: () => request<AnalyticsSummary>("/api/analytics"),
+
+  companyProfile: () => request<CompanyProfile>("/api/company/profile"),
+
+  updateCompanyProfile: (patch: Partial<CompanyProfile>) =>
+    request<CompanyProfile>("/api/company/profile", { method: "PATCH", body: JSON.stringify(patch) }),
+
+  async uploadLogo(file: File): Promise<void> {
+    const form = new FormData();
+    form.append("file", file);
+    await request<{ hasLogo: boolean }>("/api/company/logo", { method: "POST", body: form });
+  },
+
+  deleteLogo: () => request<void>("/api/company/logo", { method: "DELETE" }),
+
+  /** The logo as a data URL, for embedding in a generated PDF. */
+  async logoDataUrl(): Promise<string | null> {
+    const run = async () => {
+      const headers = new Headers();
+      const access = tokens.access;
+      if (access) headers.set("authorization", `Bearer ${access}`);
+      return fetch(`${API_URL}/api/company/logo`, { headers });
+    };
+    let res = await run();
+    if (res.status === 401 && (await refreshOnce())) res = await run();
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  },
 
   gcHistory: (bidId: string) => request<GcHistory | null>(`/api/bids/${bidId}/gc-history`),
 

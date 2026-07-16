@@ -15,6 +15,20 @@ export const users = pgTable("users", {
    * can put bids on this user's board; rotatable for the same reason.
    */
   inboundToken: text("inbound_token").unique(),
+
+  // ---- company profile: what appears on an exported proposal --------------
+  /** Storage key for the letterhead image; served through an owner-scoped route. */
+  logoStoragePath: text("logo_storage_path"),
+  /** Hex like #d97706. Tinted rules and headings on the proposal. */
+  brandColor: text("brand_color"),
+  companyAddress: text("company_address"),
+  companyPhone: text("company_phone"),
+  companyEmail: text("company_email"),
+  /** Licence number — subs are usually required to show it on a proposal. */
+  companyLicense: text("company_license"),
+  /** Payment/validity boilerplate appended to every proposal. */
+  proposalTerms: text("proposal_terms"),
+
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
-  Inbox, Copy, Check, RefreshCw, Loader2, AlertTriangle, Mail, FileText, X,
+  Inbox, Copy, Check, RefreshCw, Loader2, AlertTriangle, Mail, FileText, X, Building2, Upload, Trash2,
 } from "lucide-react";
-import { api, type InboxAddress, type InboundMessage } from "@/lib/api";
+import { api, type InboxAddress, type InboundMessage, type CompanyProfile } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth-context";
 import { relativeTime } from "@/lib/bid-board";
 
@@ -16,14 +16,20 @@ export default function SettingsPage() {
   const [messages, setMessages] = useState<InboundMessage[]>([]);
   const [copied, setCopied] = useState(false);
   const [rotating, setRotating] = useState(false);
+  const [profile, setProfile] = useState<CompanyProfile | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [logoBust, setLogoBust] = useState(0);
+  const logoInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
-    const [addr, msgs] = await Promise.all([
+    const [addr, msgs, prof] = await Promise.all([
       api.inboxAddress().catch(() => null),
       api.inboxMessages().catch(() => []),
+      api.companyProfile().catch(() => null),
     ]);
     setInbox(addr);
     setMessages(msgs);
+    setProfile(prof);
   }, []);
 
   useEffect(() => {
@@ -59,6 +65,117 @@ export default function SettingsPage() {
       </p>
 
       <section className="mt-8">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <Building2 className="h-4 w-4" />
+          Company profile
+        </h2>
+        <p className="mt-1 text-sm text-slate-500">
+          This is what appears on an exported proposal.
+        </p>
+
+        {profile && (
+          <div className="card mt-3 space-y-4 p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              {profile.hasLogo ? (
+                // A plain <img>: next/image can't optimize an authenticated blob route.
+                <img
+                  src={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"}/api/company/logo?v=${logoBust}`}
+                  alt="Company letterhead"
+                  className="h-12 w-auto max-w-[10rem] rounded border border-slate-200 bg-white object-contain p-1 dark:border-slate-700"
+                />
+              ) : (
+                <div className="flex h-12 w-32 items-center justify-center rounded border border-dashed border-slate-300 text-xs text-slate-400 dark:border-slate-700">
+                  No letterhead
+                </div>
+              )}
+              <input
+                ref={logoInput}
+                type="file"
+                accept="image/png,image/jpeg"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    await api.uploadLogo(file);
+                    setProfile((p) => (p ? { ...p, hasLogo: true } : p));
+                    setLogoBust((v) => v + 1);
+                    toast.success("Letterhead updated");
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "Could not upload");
+                  }
+                }}
+              />
+              <button onClick={() => logoInput.current?.click()} className="btn-secondary px-2.5 py-1.5 text-xs">
+                <Upload className="h-3.5 w-3.5" />
+                {profile.hasLogo ? "Replace" : "Upload"} letterhead
+              </button>
+              {profile.hasLogo && (
+                <button
+                  onClick={async () => {
+                    await api.deleteLogo().catch(() => undefined);
+                    setProfile((p) => (p ? { ...p, hasLogo: false } : p));
+                  }}
+                  className="btn-ghost px-2 py-1.5 text-xs"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <label className="ml-auto flex items-center gap-2 text-xs text-slate-500">
+                Brand colour
+                <input
+                  type="color"
+                  value={profile.brandColor ?? "#d97706"}
+                  onChange={(e) => setProfile({ ...profile, brandColor: e.target.value })}
+                  className="h-7 w-10 cursor-pointer rounded border border-slate-200 bg-transparent dark:border-slate-700"
+                  aria-label="Brand colour"
+                />
+              </label>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Company name" value={profile.companyName} onChange={(v) => setProfile({ ...profile, companyName: v })} />
+              <Field label="Licence number" value={profile.companyLicense} onChange={(v) => setProfile({ ...profile, companyLicense: v })} />
+              <Field label="Phone" value={profile.companyPhone} onChange={(v) => setProfile({ ...profile, companyPhone: v })} />
+              <Field label="Email" value={profile.companyEmail} onChange={(v) => setProfile({ ...profile, companyEmail: v })} />
+            </div>
+            <Field label="Address" value={profile.companyAddress} onChange={(v) => setProfile({ ...profile, companyAddress: v })} />
+            <label className="block">
+              <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Proposal terms</span>
+              <textarea
+                rows={3}
+                value={profile.proposalTerms ?? ""}
+                onChange={(e) => setProfile({ ...profile, proposalTerms: e.target.value })}
+                placeholder="Payment terms net 30 from invoice date…"
+                className="input mt-1 resize-y text-sm"
+              />
+            </label>
+
+            <div className="flex justify-end">
+              <button
+                onClick={async () => {
+                  setSavingProfile(true);
+                  try {
+                    setProfile(await api.updateCompanyProfile(profile));
+                    toast.success("Company profile saved");
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : "Could not save");
+                  } finally {
+                    setSavingProfile(false);
+                  }
+                }}
+                disabled={savingProfile}
+                className="btn-primary px-4 py-1.5 text-sm"
+              >
+                {savingProfile && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                Save profile
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="mt-10">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
           <Inbox className="h-4 w-4" />
           Bids by email
@@ -165,6 +282,21 @@ export default function SettingsPage() {
         )}
       </section>
     </div>
+  );
+}
+
+function Field({
+  label, value, onChange,
+}: {
+  label: string;
+  value: string | null;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{label}</span>
+      <input value={value ?? ""} onChange={(e) => onChange(e.target.value)} className="input mt-1 text-sm" />
+    </label>
   );
 }
 

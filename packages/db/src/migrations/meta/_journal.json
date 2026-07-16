@@ -43,6 +43,13 @@
       "when": 1784225475406,
       "tag": "0005_outstanding_gladiator",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784227308603,
+      "tag": "0006_minor_the_fallen",
+      "breakpoints": true
     }
   ]
 }

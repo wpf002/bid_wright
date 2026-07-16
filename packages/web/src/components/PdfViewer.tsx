@@ -13,7 +13,10 @@ import { api } from "@/lib/api";
  */
 
 interface Props {
-  bidId: string;
+  /** Fetch the bid's stored ITB. Ignored when `data` is given. */
+  bidId?: string;
+  /** Render these bytes directly — used to preview a freshly generated PDF. */
+  data?: ArrayBuffer;
   page: number;
   onPageChange: (page: number) => void;
   /** Bumped by the parent to re-scroll when the same page is clicked twice. */
@@ -23,7 +26,7 @@ interface Props {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type PdfDoc = any;
 
-export function PdfViewer({ bidId, page, onPageChange, jumpNonce }: Props) {
+export function PdfViewer({ bidId, data, page, onPageChange, jumpNonce }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const docRef = useRef<PdfDoc | null>(null);
@@ -49,9 +52,13 @@ export function PdfViewer({ bidId, page, onPageChange, jumpNonce }: Props) {
         // parser on every build.
         pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
-        const data = await api.fetchPdf(bidId);
+        // A blob preview passes bytes straight in; the editor fetches the
+        // stored ITB. Same renderer either way — relying on the browser's PDF
+        // plugin in an iframe doesn't work everywhere.
+        const bytes = data ?? (bidId ? await api.fetchPdf(bidId) : null);
+        if (!bytes) throw new Error("Nothing to render");
         if (cancelled) return;
-        const doc = await pdfjs.getDocument({ data }).promise;
+        const doc = await pdfjs.getDocument({ data: bytes.slice(0) }).promise;
         if (cancelled) return;
         docRef.current = doc;
         setNumPages(doc.numPages);
@@ -68,7 +75,7 @@ export function PdfViewer({ bidId, page, onPageChange, jumpNonce }: Props) {
       docRef.current?.destroy?.();
       docRef.current = null;
     };
-  }, [bidId]);
+  }, [bidId, data]);
 
   const render = useCallback(async () => {
     const doc = docRef.current;

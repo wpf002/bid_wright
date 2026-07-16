@@ -1,5 +1,6 @@
 import { computeTotals } from "./editor";
-import { money, type ProposalData } from "./export";
+import { money } from "./export";
+import { hexToRgb, type ProposalDoc } from "./proposal";
 
 /**
  * Word proposal. `docx` is imported dynamically so it stays out of the main
@@ -8,13 +9,15 @@ import { money, type ProposalData } from "./export";
  * Phase 7 adds letterhead, branding, and a cover page; this is the honest
  * working version.
  */
-export async function buildDocx(data: ProposalData): Promise<Blob> {
+export async function buildDocx(doc: ProposalDoc): Promise<Blob> {
   const {
     Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell,
-    WidthType, AlignmentType, BorderStyle,
+    WidthType, AlignmentType, BorderStyle, Header,
   } = await import("docx");
 
-  const totals = computeTotals(data.lineItems, data.overheadPercent, data.profitPercent);
+  const totals = computeTotals(doc.lineItems, doc.overheadPercent, doc.profitPercent);
+  const [br, bg, bb] = hexToRgb(doc.company.brandColor);
+  const brandHex = [br, bg, bb].map((c) => c.toString(16).padStart(2, "0")).join("");
 
   const cell = (text: string, opts: { bold?: boolean; right?: boolean } = {}) =>
     new TableCell({
@@ -28,11 +31,13 @@ export async function buildDocx(data: ProposalData): Promise<Blob> {
     });
 
   const meta: [string, string | null][] = [
-    ["Project", data.projectName],
-    ["Address", data.projectAddress],
-    ["General Contractor", data.generalContractor],
-    ["Owner", data.owner],
-    ["Bid deadline", data.bidDeadline],
+    ["Project", doc.project.name],
+    ["Prepared for", doc.project.generalContractor],
+    ["Owner", doc.project.owner],
+    ["Project address", doc.project.address],
+    ["Bid deadline", doc.project.bidDeadline],
+    ["Date issued", doc.dateIssued],
+    ["Valid for", `${doc.validityDays} days`],
   ];
 
   const section = (title: string, items: string[]) =>
@@ -45,14 +50,29 @@ export async function buildDocx(data: ProposalData): Promise<Blob> {
         ]
       : [];
 
-  const doc = new Document({
+  const document = new Document({
     sections: [
       {
         properties: {},
+        // Word repeats a header on every page natively, which is how the
+        // letterhead requirement is met in docx.
+        headers: {
+          default: new Header({
+            children: [
+              new Paragraph({
+                children: [new TextRun({ text: doc.company.name, bold: true, size: 18, color: brandHex })],
+                border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: brandHex } },
+              }),
+            ],
+          }),
+        },
         children: [
           new Paragraph({
-            children: [new TextRun({ text: data.companyName, bold: true, size: 28 })],
+            children: [new TextRun({ text: doc.company.name, bold: true, size: 28, color: brandHex })],
           }),
+          ...([doc.company.address, [doc.company.phone, doc.company.email].filter(Boolean).join("  ·  "), doc.company.license ? `License ${doc.company.license}` : null]
+            .filter(Boolean)
+            .map((line) => new Paragraph({ children: [new TextRun({ text: line as string, size: 16, color: "64748B" })] }))),
           new Paragraph({
             text: "Bid Proposal",
             heading: HeadingLevel.HEADING_1,
@@ -72,7 +92,12 @@ export async function buildDocx(data: ProposalData): Promise<Blob> {
                 }),
             ),
 
-          new Paragraph({ text: "Scope and Pricing", heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 120 } }),
+          new Paragraph({ text: "Executive summary", heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 120 } }),
+          new Paragraph({ children: [new TextRun({ text: doc.summary, size: 19 })], spacing: { after: 120 } }),
+
+          ...section("Scope of work", doc.scopeNarrative),
+
+          new Paragraph({ text: "Pricing", heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 120 } }),
           new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
             borders: {
@@ -94,7 +119,7 @@ export async function buildDocx(data: ProposalData): Promise<Blob> {
                   cell("Total", { bold: true, right: true }),
                 ],
               }),
-              ...data.lineItems.map(
+              ...doc.lineItems.map(
                 (li) =>
                   new TableRow({
                     children: [
@@ -116,14 +141,14 @@ export async function buildDocx(data: ProposalData): Promise<Blob> {
               new TableRow({
                 children: [
                   cell(""), cell(""), cell(""),
-                  cell(`Overhead (${data.overheadPercent}%)`, { right: true }),
+                  cell(`Overhead (${doc.overheadPercent}%)`, { right: true }),
                   cell(money(totals.overheadCents), { right: true }),
                 ],
               }),
               new TableRow({
                 children: [
                   cell(""), cell(""), cell(""),
-                  cell(`Profit (${data.profitPercent}%)`, { right: true }),
+                  cell(`Profit (${doc.profitPercent}%)`, { right: true }),
                   cell(money(totals.profitCents), { right: true }),
                 ],
               }),
@@ -137,24 +162,28 @@ export async function buildDocx(data: ProposalData): Promise<Blob> {
             ],
           }),
 
-          ...section("Assumptions", data.assumptions),
-          ...section("Clarifications", data.clarifications),
-          ...section("Exclusions", data.exclusions),
+          ...section("Assumptions", doc.assumptions),
+          ...section("Clarifications", doc.clarifications),
+          ...section("Exclusions", doc.exclusions),
 
+          new Paragraph({ text: "Terms", heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 120 } }),
+          new Paragraph({ children: [new TextRun({ text: doc.terms, size: 17 })] }),
+
+          new Paragraph({ text: "Acceptance", heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 120 } }),
           new Paragraph({
-            spacing: { before: 300 },
             children: [
               new TextRun({
-                text: `This proposal is valid for ${data.validityDays} days from the date of issue.`,
-                italics: true,
-                size: 18,
+                text: "Signing below accepts this proposal and its stated assumptions, clarifications, and exclusions.",
+                size: 17,
               }),
             ],
+            spacing: { after: 400 },
           }),
+          new Paragraph({ children: [new TextRun({ text: "Authorized signature: ______________________________    Date: ______________", size: 18 })] }),
         ],
       },
     ],
   });
 
-  return Packer.toBlob(doc);
+  return Packer.toBlob(document);
 }

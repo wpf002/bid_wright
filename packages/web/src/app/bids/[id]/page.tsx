@@ -8,7 +8,9 @@ import {
   ArrowLeft, AlertTriangle, Loader2, Plus, Trash2, Check, CloudOff, FileText, Sparkles, Trophy, History,
 } from "lucide-react";
 import { formatCents, type BidLineItem, type ExtractionResult } from "@bidwright/shared";
-import { api, ApiError, type BidRow, type CostSuggestionsResponse, type GcHistory } from "@/lib/api";
+import {
+  api, ApiError, type BidRow, type CostSuggestionsResponse, type GcHistory, type CompanyProfile,
+} from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth-context";
 import { useAutosave } from "@/lib/use-autosave";
 import { PdfViewer } from "@/components/PdfViewer";
@@ -43,6 +45,8 @@ export default function BidEditorPage() {
   const [costs, setCosts] = useState<CostSuggestionsResponse | null>(null);
   const [gcHistory, setGcHistory] = useState<GcHistory | null>(null);
   const [outcomeOpen, setOutcomeOpen] = useState(false);
+  const [profile, setProfile] = useState<CompanyProfile | null>(null);
+  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
 
   const hydrate = useCallback((row: BidRow) => {
     setBid(row);
@@ -93,6 +97,18 @@ export default function BidEditorPage() {
     api
       .gcHistory(bidId)
       .then((h) => !cancelled && setGcHistory(h))
+      .catch(() => undefined);
+    // Letterhead for the export; a missing profile just means a plain proposal.
+    api
+      .companyProfile()
+      .then(async (p) => {
+        if (cancelled) return;
+        setProfile(p);
+        if (p.hasLogo) {
+          const url = await api.logoDataUrl();
+          if (!cancelled) setLogoDataUrl(url);
+        }
+      })
       .catch(() => undefined);
     return () => {
       cancelled = true;
@@ -205,7 +221,7 @@ export default function BidEditorPage() {
             <Trophy className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">{bid.outcome ? OUTCOME_LABEL[bid.outcome.result] : "Outcome"}</span>
           </button>
-          <ExportMenu bid={{ ...bid, ...draft }} companyName={user?.companyName ?? "Your Company"} />
+          <ExportMenu bid={{ ...bid, ...draft }} profile={profile} logoDataUrl={logoDataUrl} />
           <div className="text-right">
             <div className="font-mono text-lg font-semibold text-slate-900 dark:text-slate-100">
               {formatCents(totals.totalCents)}

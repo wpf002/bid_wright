@@ -7,6 +7,7 @@ import { uploadRoutes } from "./routes/uploads";
 import { authRoutes } from "./routes/auth";
 import { intelligenceRoutes } from "./routes/intelligence";
 import { inboundRoutes } from "./routes/inbound";
+import { companyRoutes } from "./routes/company";
 
 export interface BuildAppOptions {
   logger?: boolean;
@@ -34,6 +35,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(bidRoutes, { prefix: "/api/bids" });
   await app.register(uploadRoutes, { prefix: "/api/uploads" });
   await app.register(intelligenceRoutes, { prefix: "/api" });
+  await app.register(companyRoutes, { prefix: "/api/company" });
   // Unauthenticated by necessity — the provider POSTs it; gated by a URL secret.
   await app.register(inboundRoutes, { prefix: "/api/inbound" });
 
