@@ -33,4 +33,16 @@ export {
 } from "./libraries";
 export type { ClauseSeed } from "./libraries";
 
+export {
+  normalizeDescription,
+  normalizeUnit,
+  tokenize,
+  similarity,
+  suggestCost,
+  suggestCostsForItems,
+  toCostRecord,
+  SIMILARITY_THRESHOLD,
+} from "./intelligence/matching";
+export type { CostRecord, CostSuggestion } from "./intelligence/matching";
+
 export * from "./types";

@@ -8,7 +8,7 @@ import {
   generateBidResponse,
 } from "../src/generation/generate";
 import { validateGenerationDraft } from "../src/generation/schema";
-import { generationUserPrompt, GENERATION_SYSTEM_PROMPT } from "../src/prompts/generation";
+import { generationUserPrompt, GENERATION_SYSTEM_PROMPT, historyBlock } from "../src/prompts/generation";
 import type { MessagesClient } from "../src/extraction/extract";
 import { VALID_EXTRACTION_JSON } from "./fixtures/itb-sample";
 
@@ -242,5 +242,40 @@ describe("generation prompt v2", () => {
     const prompt = generationUserPrompt(extraction);
     expect(prompt).toContain("no pricing fields");
     expect(prompt).not.toContain("unitCostCents");
+  });
+});
+
+describe("history-enriched generation prompt", () => {
+  const past = [
+    "Install EMT conduit for branch circuits",
+    "Pull copper branch wiring, THHN #12 AWG",
+  ];
+
+  it("includes the estimator's past wording so history can match", () => {
+    const prompt = generationUserPrompt(extraction, "electrical", past);
+    expect(prompt).toContain("Install EMT conduit for branch circuits");
+    expect(prompt).toMatch(/reuse that wording verbatim/i);
+  });
+
+  it("omits the block entirely for a user with no history", () => {
+    const prompt = generationUserPrompt(extraction, "electrical", []);
+    expect(prompt).not.toMatch(/HOW THIS SUBCONTRACTOR USUALLY DESCRIBES/);
+  });
+
+  it("tells the model not to invent scope from history", () => {
+    const prompt = generationUserPrompt(extraction, "electrical", past);
+    expect(prompt).toMatch(/only describe work this ITB actually calls for/i);
+  });
+
+  it("never puts prices in the prompt — the model must not originate money", () => {
+    const block = historyBlock(past);
+    expect(block).not.toMatch(/\$|cents|unitCost/i);
+  });
+
+  it("caps the history block so a long history can't crowd out the ITB", () => {
+    const many = Array.from({ length: 200 }, (_, i) => `Historical work item number ${i}`);
+    const block = historyBlock(many);
+    expect(block).toContain("Historical work item number 39");
+    expect(block).not.toContain("Historical work item number 40");
   });
 });

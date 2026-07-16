@@ -1,5 +1,5 @@
 import {
-  pgTable, uuid, text, timestamp, integer, real, boolean, index,
+  pgTable, uuid, text, timestamp, integer, real, index, uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { jsonbObject as jsonb } from "./jsonb";
 
@@ -78,13 +78,22 @@ export const uploads = pgTable("uploads", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-/** User's own history of unit costs by description — the intelligence layer. */
+/**
+ * The user's own history of unit costs by description — the intelligence layer.
+ * One row per priced line item on a finalized bid.
+ */
 export const costHistory = pgTable(
   "cost_history",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
     description: text("description").notNull(),
+    /**
+     * Canonical form of the description (see normalizeDescription). Stored
+     * rather than computed so matching is an indexed lookup instead of a
+     * full scan of the user's history on every line item.
+     */
+    normalizedKey: text("normalized_key").notNull().default(""),
     trade: text("trade").notNull(),
     unit: text("unit").notNull(),
     unitCostCents: integer("unit_cost_cents").notNull(),
@@ -93,15 +102,53 @@ export const costHistory = pgTable(
   },
   (t) => ({
     userTradeIdx: index("cost_history_user_trade_idx").on(t.userId, t.trade),
+    matchIdx: index("cost_history_match_idx").on(t.userId, t.trade, t.normalizedKey),
+    /** One row per line item per bid — makes re-finalizing idempotent. */
+    uniquePerBidItem: uniqueIndex("cost_history_bid_item_idx").on(t.bidId, t.normalizedKey, t.unit),
   }),
 );
 
-/** Reusable exclusion clauses per user, per trade. */
-export const exclusionClauses = pgTable("exclusion_clauses", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
-  trade: text("trade"),
-  clause: text("clause").notNull(),
-  isDefault: boolean("is_default").notNull().default(false),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+/**
+ * The user's own reusable clauses. Supersedes the exclusion-only table:
+ * Phase 4 needs assumptions and clarifications too, and they behave
+ * identically apart from `kind`.
+ */
+export const userClauses = pgTable(
+  "user_clauses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+    /** "assumption" | "clarification" | "exclusion" */
+    kind: text("kind").notNull(),
+    /** Null means the clause applies to every trade. */
+    trade: text("trade"),
+    text: text("text").notNull(),
+    /** Bumped on insert, so the picker can surface what this user actually uses. */
+    useCount: integer("use_count").notNull().default(0),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    userKindIdx: index("user_clauses_user_kind_idx").on(t.userId, t.kind),
+    userTradeIdx: index("user_clauses_user_trade_idx").on(t.userId, t.trade),
+  }),
+);
+
+/** A saved clause set the user can apply to a new bid of the same trade. */
+export const templates = pgTable(
+  "templates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+    name: text("name").notNull(),
+    trade: text("trade"),
+    assumptions: jsonb("assumptions").notNull(),
+    clarifications: jsonb("clarifications").notNull(),
+    exclusions: jsonb("exclusions").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    userIdx: index("templates_user_idx").on(t.userId),
+  }),
+);

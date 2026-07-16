@@ -5,6 +5,7 @@ import jwt from "@fastify/jwt";
 import { bidRoutes } from "./routes/bids";
 import { uploadRoutes } from "./routes/uploads";
 import { authRoutes } from "./routes/auth";
+import { intelligenceRoutes } from "./routes/intelligence";
 
 export interface BuildAppOptions {
   logger?: boolean;
@@ -31,6 +32,7 @@ export async function buildApp(opts: BuildAppOptions = {}): Promise<FastifyInsta
   await app.register(authRoutes, { prefix: "/api/auth" });
   await app.register(bidRoutes, { prefix: "/api/bids" });
   await app.register(uploadRoutes, { prefix: "/api/uploads" });
+  await app.register(intelligenceRoutes, { prefix: "/api" });
 
   return app;
 }

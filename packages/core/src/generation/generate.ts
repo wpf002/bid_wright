@@ -94,7 +94,7 @@ export function draftToBidResponse(
 export async function generateBidResponse(
   extraction: ExtractionResult,
   itbFileName: string,
-  opts: GenerationOptions & { client?: MessagesClient } = {},
+  opts: GenerationOptions & { client?: MessagesClient; pastDescriptions?: string[] } = {},
 ): Promise<BidResponse> {
   const client = opts.client ?? getClient();
   const model = opts.model ?? DEFAULT_MODEL;
@@ -102,7 +102,7 @@ export async function generateBidResponse(
   const trade = (opts.trade as ExtractionResult["primaryTrade"]) ?? extraction.primaryTrade;
 
   const messages: Anthropic.MessageParam[] = [
-    { role: "user", content: generationUserPrompt(extraction, trade) },
+    { role: "user", content: generationUserPrompt(extraction, trade, opts.pastDescriptions ?? []) },
   ];
 
   let lastError = "";

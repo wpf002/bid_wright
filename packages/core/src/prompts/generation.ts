@@ -45,7 +45,27 @@ function candidateBlock(title: string, texts: string[]): string {
   return `${title}:\n${list}`;
 }
 
-export function generationUserPrompt(extraction: ExtractionResult, trade?: Trade): string {
+/**
+ * Past line-item descriptions from this user's own bids, used to steer wording.
+ *
+ * Deliberately descriptions only — never prices. The roadmap suggested feeding
+ * historical unit costs into the prompt, but the model is forbidden from
+ * originating money (see rule 2), and showing it real prices is an invitation
+ * to invent more. Matching a new item to history is a deterministic lookup, so
+ * the only thing the model can usefully do is phrase scope the way this
+ * estimator already phrases it — which is exactly what makes that lookup hit.
+ */
+export function historyBlock(pastDescriptions: string[]): string {
+  if (pastDescriptions.length === 0) return "";
+  const list = pastDescriptions.slice(0, 40).map((d) => `- ${d}`).join("\n");
+  return `\nHOW THIS SUBCONTRACTOR USUALLY DESCRIBES THEIR WORK — when an item below covers the same work as something in this ITB, reuse that wording verbatim so their cost history matches. Do NOT include an item just because it appears here; only describe work this ITB actually calls for.\n\n${list}\n`;
+}
+
+export function generationUserPrompt(
+  extraction: ExtractionResult,
+  trade?: Trade,
+  pastDescriptions: string[] = [],
+): string {
   const primaryTrade = trade ?? extraction.primaryTrade;
   const tradeLabel = TRADE_LABELS[primaryTrade] ?? primaryTrade;
 
@@ -65,7 +85,7 @@ ${candidateBlock("ASSUMPTIONS", assumptions)}
 ${candidateBlock("CLARIFICATIONS", clarifications)}
 
 ${candidateBlock("EXCLUSIONS", exclusions)}
-
+${historyBlock(pastDescriptions)}
 Return JSON matching this EXACT shape (no pricing fields):
 
 ${SCHEMA_BLOCK}`;

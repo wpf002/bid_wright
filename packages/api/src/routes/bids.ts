@@ -1,10 +1,11 @@
 import type { FastifyInstance } from "fastify";
-import { db, bids } from "@bidwright/db";
+import { db, bids, costHistory } from "@bidwright/db";
 import { eq, and, desc } from "drizzle-orm";
 import { z } from "zod";
 import { generateBidResponse } from "@bidwright/core";
 import type { ExtractionResult } from "@bidwright/shared";
 import { requireAuth, currentUserId } from "../auth/middleware";
+import { recordCostHistory } from "./intelligence";
 
 /**
  * Every route here is scoped to the authenticated user. Cross-user access
@@ -59,6 +60,16 @@ export async function bidRoutes(app: FastifyInstance) {
       .where(and(eq(bids.id, req.params.id), eq(bids.userId, currentUserId(req))))
       .returning();
     if (!updated) return reply.status(404).send({ error: "Not found" });
+
+    // A submitted/won/lost bid means its prices are real, so fold them into the
+    // user's cost history. Best-effort: a history write must never fail a save.
+    if (parsed.data.status) {
+      try {
+        await recordCostHistory(updated.id);
+      } catch (err) {
+        app.log.error({ err, bidId: updated.id }, "cost history write failed");
+      }
+    }
     return updated;
   });
 
@@ -75,9 +86,24 @@ export async function bidRoutes(app: FastifyInstance) {
     if (!row) return reply.status(404).send({ error: "Not found" });
 
     try {
+      // Steer wording toward how this estimator already describes their work,
+      // so the deterministic cost lookup actually hits. Descriptions only —
+      // never prices; the model must not originate money.
+      const past = await db
+        .selectDistinct({ description: costHistory.description })
+        .from(costHistory)
+        .where(
+          and(
+            eq(costHistory.userId, currentUserId(req)),
+            eq(costHistory.trade, row.primaryTrade ?? "other"),
+          ),
+        )
+        .limit(40);
+
       const draft = await generateBidResponse(
         row.extraction as ExtractionResult,
         row.itbFileName,
+        { pastDescriptions: past.map((p) => p.description) },
       );
       const [updated] = await db
         .update(bids)

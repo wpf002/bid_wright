@@ -22,6 +22,20 @@
       "when": 1784216000000,
       "tag": "0002_unwrap_double_encoded_jsonb",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784223769794,
+      "tag": "0003_huge_madrox",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784223781796,
+      "tag": "0004_crazy_boom_boom",
+      "breakpoints": true
     }
   ]
 }

@@ -8,12 +8,14 @@ import {
   ArrowLeft, AlertTriangle, Loader2, Plus, Trash2, Check, CloudOff, FileText, Sparkles,
 } from "lucide-react";
 import { formatCents, type BidLineItem, type ExtractionResult } from "@bidwright/shared";
-import { api, ApiError, type BidRow } from "@/lib/api";
+import { api, ApiError, type BidRow, type CostSuggestionsResponse } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth-context";
 import { useAutosave } from "@/lib/use-autosave";
 import { PdfViewer } from "@/components/PdfViewer";
 import { ClauseList } from "@/components/ClauseList";
 import { ExportMenu } from "@/components/ExportMenu";
+import { CostSuggestionBadge } from "@/components/CostSuggestionBadge";
+import { ClauseLibrary } from "@/components/ClauseLibrary";
 import {
   parseDollarsToCents, formatCentsForInput, parseQuantity, withRecalculatedTotal,
   computeTotals, unpricedCount, blankLineItem, confidenceTone, type EditableBid,
@@ -35,6 +37,7 @@ export default function BidEditorPage() {
   const [jumpNonce, setJumpNonce] = useState(0);
   const [drafting, setDrafting] = useState(false);
   const [draft, setDraft] = useState<EditableBid | null>(null);
+  const [costs, setCosts] = useState<CostSuggestionsResponse | null>(null);
 
   const hydrate = useCallback((row: BidRow) => {
     setBid(row);
@@ -72,6 +75,20 @@ export default function BidEditorPage() {
       cancelled = true;
     };
   }, [bidId, user, hydrate]);
+
+  // Cost suggestions from the user's own finalized bids. Loaded alongside the
+  // bid; a failure here must never block editing.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    api
+      .costSuggestions(bidId)
+      .then((c) => !cancelled && setCosts(c))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [bidId, user]);
 
   /**
    * Null-safe functional updater for the draft. Children always run behind the
@@ -243,31 +260,73 @@ export default function BidEditorPage() {
                   />
                 )}
                 {tab === "Line Items" && (
-                  <LineItemsTab draft={draft} onChange={updateDraft} onJump={jumpToPage} totals={totals} />
+                  <LineItemsTab draft={draft} onChange={updateDraft} onJump={jumpToPage} totals={totals} costs={costs} />
                 )}
                 {tab === "Assumptions" && (
-                  <ClauseList
-                    items={draft.assumptions}
-                    onChange={(assumptions) => updateDraft((prev) => ({ ...prev, assumptions }))}
-                    addLabel="Add an assumption…"
-                    emptyHint="No assumptions yet. These protect you on site conditions, schedule, and GC coordination."
-                  />
+                  <>
+                    <ClauseLibrary
+                      kind="assumption"
+                      trade={bid.primaryTrade}
+                      current={draft.assumptions}
+                      onInsert={(text) =>
+                        updateDraft((prev) =>
+                          prev.assumptions.includes(text)
+                            ? prev
+                            : { ...prev, assumptions: [...prev.assumptions, text] },
+                        )
+                      }
+                    />
+                    <ClauseList
+                      items={draft.assumptions}
+                      onChange={(assumptions) => updateDraft((prev) => ({ ...prev, assumptions }))}
+                      addLabel="Add an assumption…"
+                      emptyHint="No assumptions yet. These protect you on site conditions, schedule, and GC coordination."
+                    />
+                  </>
                 )}
                 {tab === "Clarifications" && (
-                  <ClauseList
-                    items={draft.clarifications}
-                    onChange={(clarifications) => updateDraft((prev) => ({ ...prev, clarifications }))}
-                    addLabel="Add a clarification…"
-                    emptyHint="No clarifications yet. These are the questions to ask the GC before submitting."
-                  />
+                  <>
+                    <ClauseLibrary
+                      kind="clarification"
+                      trade={bid.primaryTrade}
+                      current={draft.clarifications}
+                      onInsert={(text) =>
+                        updateDraft((prev) =>
+                          prev.clarifications.includes(text)
+                            ? prev
+                            : { ...prev, clarifications: [...prev.clarifications, text] },
+                        )
+                      }
+                    />
+                    <ClauseList
+                      items={draft.clarifications}
+                      onChange={(clarifications) => updateDraft((prev) => ({ ...prev, clarifications }))}
+                      addLabel="Add a clarification…"
+                      emptyHint="No clarifications yet. These are the questions to ask the GC before submitting."
+                    />
+                  </>
                 )}
                 {tab === "Exclusions" && (
-                  <ClauseList
-                    items={draft.exclusions}
-                    onChange={(exclusions) => updateDraft((prev) => ({ ...prev, exclusions }))}
-                    addLabel="Add an exclusion…"
-                    emptyHint="No exclusions yet. These carve out work you are not doing."
-                  />
+                  <>
+                    <ClauseLibrary
+                      kind="exclusion"
+                      trade={bid.primaryTrade}
+                      current={draft.exclusions}
+                      onInsert={(text) =>
+                        updateDraft((prev) =>
+                          prev.exclusions.includes(text)
+                            ? prev
+                            : { ...prev, exclusions: [...prev.exclusions, text] },
+                        )
+                      }
+                    />
+                    <ClauseList
+                      items={draft.exclusions}
+                      onChange={(exclusions) => updateDraft((prev) => ({ ...prev, exclusions }))}
+                      addLabel="Add an exclusion…"
+                      emptyHint="No exclusions yet. These carve out work you are not doing."
+                    />
+                  </>
                 )}
                 {tab === "Compliance" && <ComplianceTab extraction={extraction} />}
               </>
@@ -504,12 +563,13 @@ function Field({ label, value }: { label: string; value?: string | null }) {
 }
 
 function LineItemsTab({
-  draft, onChange, onJump, totals,
+  draft, onChange, onJump, totals, costs,
 }: {
   draft: EditableBid;
   onChange: React.Dispatch<React.SetStateAction<EditableBid>>;
   onJump: (p: number | null) => void;
   totals: ReturnType<typeof computeTotals>;
+  costs: CostSuggestionsResponse | null;
 }) {
   // Functional update: two fields blurred in the same tick would otherwise each
   // build from the same stale `draft` closure, and the second would drop the first.
@@ -522,19 +582,51 @@ function LineItemsTab({
     }));
   }
 
+  const matched = draft.lineItems.filter((li) => costs?.suggestions[li.id]).length;
+  const unpricedWithSuggestion = draft.lineItems.filter(
+    (li) => li.unitCostCents === 0 && costs?.suggestions[li.id],
+  ).length;
+
+  /** Apply every suggestion to items the estimator hasn't priced yet. */
+  function applyAllSuggestions() {
+    onChange((prev) => ({
+      ...prev,
+      lineItems: prev.lineItems.map((li) => {
+        const s = costs?.suggestions[li.id];
+        // Never overwrite a price the estimator already entered.
+        if (!s || li.unitCostCents !== 0) return li;
+        return withRecalculatedTotal({ ...li, unitCostCents: s.avgUnitCostCents });
+      }),
+    }));
+  }
+
   return (
     <div>
+      {matched > 0 && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
+          <span>
+            Priced {matched} of {draft.lineItems.length} line items from your history
+            {costs && ` · ${costs.historySize} past line items in ${costs.trade.replace(/_/g, " ")}`}
+          </span>
+          {unpricedWithSuggestion > 0 && (
+            <button onClick={applyAllSuggestions} className="btn-secondary px-2 py-1 text-xs">
+              Use all {unpricedWithSuggestion}
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           {/* min-width keeps the description column readable in the split view;
               without it the fixed columns crush it to a few characters. */}
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className="w-full min-w-[820px] text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-900/50">
               <tr>
                 <th className="min-w-[240px] px-3 py-2 font-medium">Description</th>
                 <th className="w-24 px-3 py-2 text-right font-medium">Qty</th>
                 <th className="w-20 px-3 py-2 font-medium">Unit</th>
-                <th className="w-32 px-3 py-2 text-right font-medium">Unit cost</th>
+                <th className="w-40 px-3 py-2 text-right font-medium">Unit cost</th>
                 <th className="w-32 px-3 py-2 text-right font-medium">Total</th>
                 <th className="w-16 px-3 py-2 font-medium">Src</th>
                 <th className="w-10 px-3 py-2" />
@@ -579,6 +671,7 @@ function LineItemsTab({
                   </td>
                   <td className="px-3 py-1.5 align-top">
                     <input
+                      key={`${li.id}-${li.unitCostCents}`}
                       defaultValue={formatCentsForInput(li.unitCostCents)}
                       onBlur={(e) => {
                         const cents = parseDollarsToCents(e.target.value);
@@ -595,6 +688,15 @@ function LineItemsTab({
                       inputMode="decimal"
                       aria-label="Unit cost"
                     />
+                    {costs?.suggestions[li.id] && (
+                      <div className="flex justify-end">
+                        <CostSuggestionBadge
+                          suggestion={costs.suggestions[li.id]}
+                          applied={li.unitCostCents === costs.suggestions[li.id].avgUnitCostCents}
+                          onApply={(cents) => update(i, { unitCostCents: cents })}
+                        />
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-1.5 text-right align-top font-mono text-sm text-slate-900 dark:text-slate-100">
                     {formatCents(li.totalCostCents)}

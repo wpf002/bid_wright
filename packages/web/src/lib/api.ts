@@ -45,6 +45,47 @@ export interface BidRow {
   updatedAt: string;
 }
 
+export type ClauseKind = "assumption" | "clarification" | "exclusion";
+
+export interface UserClause {
+  id: string;
+  kind: ClauseKind;
+  trade: string | null;
+  text: string;
+  useCount: number;
+  createdAt: string;
+}
+
+export interface Template {
+  id: string;
+  name: string;
+  trade: string | null;
+  assumptions: string[];
+  clarifications: string[];
+  exclusions: string[];
+  updatedAt: string;
+}
+
+/** A unit-cost suggestion drawn from the user's own finalized bids. */
+export interface CostSuggestion {
+  avgUnitCostCents: number;
+  lastUnitCostCents: number;
+  minUnitCostCents: number;
+  maxUnitCostCents: number;
+  sampleSize: number;
+  unit: string;
+  confidence: number;
+  matchedDescription: string;
+}
+
+export interface CostSuggestionsResponse {
+  trade: string;
+  historySize: number;
+  /** Fraction of this bid's line items we can price from history. */
+  coverage: number;
+  suggestions: Record<string, CostSuggestion>;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -224,6 +265,34 @@ export const api = {
 
   /** Draft the response from an already-extracted bid. */
   generateBid: (id: string) => request<BidRow>(`/api/bids/${id}/generate`, { method: "POST" }),
+
+  // ---- intelligence (Phase 4) --------------------------------------------
+
+  costSuggestions: (bidId: string) =>
+    request<CostSuggestionsResponse>(`/api/bids/${bidId}/cost-suggestions`),
+
+  listClauses: (kind?: ClauseKind) =>
+    request<UserClause[]>(`/api/clauses${kind ? `?kind=${kind}` : ""}`),
+
+  createClause: (input: { kind: ClauseKind; trade?: string | null; text: string }) =>
+    request<UserClause>("/api/clauses", { method: "POST", body: JSON.stringify(input) }),
+
+  markClauseUsed: (id: string) =>
+    request<UserClause>(`/api/clauses/${id}/used`, { method: "POST" }),
+
+  deleteClause: (id: string) => request<void>(`/api/clauses/${id}`, { method: "DELETE" }),
+
+  listTemplates: () => request<Template[]>("/api/templates"),
+
+  createTemplate: (input: {
+    name: string;
+    trade?: string | null;
+    assumptions: string[];
+    clarifications: string[];
+    exclusions: string[];
+  }) => request<Template>("/api/templates", { method: "POST", body: JSON.stringify(input) }),
+
+  deleteTemplate: (id: string) => request<void>(`/api/templates/${id}`, { method: "DELETE" }),
 
   /** Owner-scoped URL for a bid's source PDF. */
   pdfUrl: (bidId: string) => `${API_URL}/api/uploads/${bidId}/file`,
