@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import {
-  ArrowLeft, AlertTriangle, Loader2, Plus, Trash2, Check, CloudOff, FileText, Sparkles,
+  ArrowLeft, AlertTriangle, Loader2, Plus, Trash2, Check, CloudOff, FileText, Sparkles, Trophy, History,
 } from "lucide-react";
 import { formatCents, type BidLineItem, type ExtractionResult } from "@bidwright/shared";
-import { api, ApiError, type BidRow, type CostSuggestionsResponse } from "@/lib/api";
+import { api, ApiError, type BidRow, type CostSuggestionsResponse, type GcHistory } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth-context";
 import { useAutosave } from "@/lib/use-autosave";
 import { PdfViewer } from "@/components/PdfViewer";
@@ -16,10 +16,13 @@ import { ClauseList } from "@/components/ClauseList";
 import { ExportMenu } from "@/components/ExportMenu";
 import { CostSuggestionBadge } from "@/components/CostSuggestionBadge";
 import { ClauseLibrary } from "@/components/ClauseLibrary";
+import { OutcomeDialog } from "@/components/OutcomeDialog";
 import {
   parseDollarsToCents, formatCentsForInput, parseQuantity, withRecalculatedTotal,
   computeTotals, unpricedCount, blankLineItem, confidenceTone, type EditableBid,
 } from "@/lib/editor";
+
+const OUTCOME_LABEL: Record<string, string> = { won: "Won", lost: "Lost", withdrawn: "Withdrawn" };
 
 const TABS = ["Overview", "Line Items", "Assumptions", "Clarifications", "Exclusions", "Compliance"] as const;
 type Tab = (typeof TABS)[number];
@@ -38,6 +41,8 @@ export default function BidEditorPage() {
   const [drafting, setDrafting] = useState(false);
   const [draft, setDraft] = useState<EditableBid | null>(null);
   const [costs, setCosts] = useState<CostSuggestionsResponse | null>(null);
+  const [gcHistory, setGcHistory] = useState<GcHistory | null>(null);
+  const [outcomeOpen, setOutcomeOpen] = useState(false);
 
   const hydrate = useCallback((row: BidRow) => {
     setBid(row);
@@ -84,6 +89,10 @@ export default function BidEditorPage() {
     api
       .costSuggestions(bidId)
       .then((c) => !cancelled && setCosts(c))
+      .catch(() => undefined);
+    api
+      .gcHistory(bidId)
+      .then((h) => !cancelled && setGcHistory(h))
       .catch(() => undefined);
     return () => {
       cancelled = true;
@@ -192,6 +201,10 @@ export default function BidEditorPage() {
         </div>
         <div className="flex shrink-0 items-center gap-3">
           <SaveIndicator state={saveState} />
+          <button onClick={() => setOutcomeOpen(true)} className="btn-secondary px-2.5 py-1.5 text-xs">
+            <Trophy className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{bid.outcome ? OUTCOME_LABEL[bid.outcome.result] : "Outcome"}</span>
+          </button>
           <ExportMenu bid={{ ...bid, ...draft }} companyName={user?.companyName ?? "Your Company"} />
           <div className="text-right">
             <div className="font-mono text-lg font-semibold text-slate-900 dark:text-slate-100">
@@ -201,6 +214,18 @@ export default function BidEditorPage() {
           </div>
         </div>
       </header>
+
+      {outcomeOpen && (
+        <OutcomeDialog
+          current={bid.outcome}
+          onClose={() => setOutcomeOpen(false)}
+          onSave={async (outcome) => {
+            const updated = await api.updateBid(bidId, { outcome } as Partial<BidRow>);
+            setBid(updated);
+            toast.success(`Marked ${outcome.result}`);
+          }}
+        />
+      )}
 
       <div className="flex min-h-0 flex-1">
         <div className="hidden w-1/2 border-r border-slate-200 lg:block dark:border-slate-800">
@@ -257,6 +282,7 @@ export default function BidEditorPage() {
                     notDrafted={notDrafted}
                     onDraft={() => void runDraft()}
                     drafting={drafting}
+                    gcHistory={gcHistory}
                   />
                 )}
                 {tab === "Line Items" && (
@@ -391,7 +417,7 @@ function Confidence({ value }: { value: number | null }) {
 }
 
 function OverviewTab({
-  extraction, draft, totals, onJump, onChange, notDrafted, onDraft, drafting,
+  extraction, draft, totals, onJump, onChange, notDrafted, onDraft, drafting, gcHistory,
 }: {
   extraction: ExtractionResult;
   draft: EditableBid;
@@ -401,12 +427,32 @@ function OverviewTab({
   notDrafted: boolean;
   onDraft: () => void;
   drafting: boolean;
+  gcHistory: GcHistory | null;
 }) {
   const m = extraction?.metadata;
   const unpriced = unpricedCount(draft.lineItems);
 
   return (
     <div className="space-y-6">
+      {gcHistory && (
+        <div className="flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm dark:bg-slate-900/60">
+          <History className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+          <span className="text-slate-700 dark:text-slate-300">
+            You&apos;ve bid <span className="font-medium">{gcHistory.gcName}</span> {gcHistory.total}{" "}
+            {gcHistory.total === 1 ? "time" : "times"} before
+            {gcHistory.won + gcHistory.lost > 0 ? (
+              <>
+                {" "}— won {gcHistory.won}, lost {gcHistory.lost}
+                {gcHistory.rate !== null && ` (${Math.round(gcHistory.rate * 100)}%)`}
+              </>
+            ) : (
+              " — none decided yet"
+            )}
+            {gcHistory.pending > 0 && `, ${gcHistory.pending} still open`}.
+          </span>
+        </div>
+      )}
+
       {notDrafted && (
         <div className="card flex items-center justify-between gap-3 p-4">
           <div className="text-sm text-slate-600 dark:text-slate-400">

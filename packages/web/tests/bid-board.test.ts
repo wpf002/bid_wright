@@ -27,6 +27,7 @@ function bid(partial: Partial<BidRow>): BidRow {
     profitPercent: 10,
     totalCents: 0,
     validityDays: 30,
+    outcome: null,
     createdAt: "2026-07-01T00:00:00Z",
     updatedAt: "2026-07-16T10:00:00Z",
     ...partial,

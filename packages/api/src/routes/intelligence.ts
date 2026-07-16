@@ -3,7 +3,10 @@ import { db, bids, costHistory, userClauses, templates, users } from "@bidwright
 import { eq, and, desc, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { BidLineItem } from "@bidwright/shared";
-import { suggestCostsForItems, toCostRecord, type CostRecord } from "@bidwright/core";
+import {
+  suggestCostsForItems, toCostRecord, summarize, historyWithGc,
+  type CostRecord, type AnalyticsBid,
+} from "@bidwright/core";
 import { requireAuth, currentUserId } from "../auth/middleware";
 import { generateInboundToken, inboundAddress } from "../inbox/postmark";
 import { recentInbound } from "./inbound";
@@ -113,6 +116,34 @@ export async function intelligenceRoutes(app: FastifyInstance) {
       .where(eq(costHistory.userId, currentUserId(req)))
       .orderBy(desc(costHistory.createdAt))
       .limit(500);
+  });
+
+  // ---- analytics ----------------------------------------------------------
+
+  /** Win/loss summary over this user's bids. */
+  app.get("/analytics", async (req) => {
+    const rows = await db
+      .select()
+      .from(bids)
+      .where(eq(bids.userId, currentUserId(req)))
+      .orderBy(desc(bids.createdAt));
+    return summarize(rows as unknown as AnalyticsBid[]);
+  });
+
+  /** "You've bid this GC 3x, won 1x" for one bid's GC. */
+  app.get<{ Params: { id: string } }>("/bids/:id/gc-history", async (req, reply) => {
+    const userId = currentUserId(req);
+    const [row] = await db
+      .select()
+      .from(bids)
+      .where(and(eq(bids.id, req.params.id), eq(bids.userId, userId)));
+    if (!row) return reply.status(404).send({ error: "Not found" });
+
+    const all = await db.select().from(bids).where(eq(bids.userId, userId));
+    // Exclude the bid being viewed: "you've bid this GC 3x" shouldn't count
+    // the one that's open on screen.
+    const others = all.filter((b) => b.id !== row.id);
+    return historyWithGc(others as unknown as AnalyticsBid[], row.gcName) ?? null;
   });
 
   // ---- inbox --------------------------------------------------------------

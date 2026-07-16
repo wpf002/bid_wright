@@ -27,7 +27,24 @@ const UpdateBidSchema = z.object({
   validityDays: z.number().int().positive().optional(),
   projectName: z.string().nullable().optional(),
   gcName: z.string().nullable().optional(),
-  outcome: z.unknown().optional(),
+  /**
+   * Constrained rather than free text: "top losing categories" only works if
+   * the answers are comparable across bids.
+   */
+  outcome: z
+    .object({
+      result: z.enum(["won", "lost", "withdrawn"]),
+      reason: z
+        .enum([
+          "price_too_high", "price_too_low", "scope_mismatch",
+          "gc_chose_other", "timing", "no_bid_submitted", "other",
+        ])
+        .optional(),
+      notes: z.string().max(2000).nullable().optional(),
+      notedAt: z.string().optional(),
+    })
+    .nullable()
+    .optional(),
 });
 
 export async function bidRoutes(app: FastifyInstance) {
@@ -54,9 +71,19 @@ export async function bidRoutes(app: FastifyInstance) {
     const parsed = UpdateBidSchema.safeParse(req.body);
     if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() });
 
+    const patch: Record<string, unknown> = { ...parsed.data, updatedAt: new Date() };
+
+    // Trust the server's clock for when an outcome was recorded — bid-to-award
+    // time is derived from it, and a client clock would quietly skew it.
+    if (parsed.data.outcome) {
+      patch.outcome = { ...parsed.data.outcome, notedAt: new Date().toISOString() };
+      // An outcome IS the status; keeping them separate invites them to drift.
+      patch.status = parsed.data.outcome.result;
+    }
+
     const [updated] = await db
       .update(bids)
-      .set({ ...parsed.data, updatedAt: new Date() })
+      .set(patch)
       .where(and(eq(bids.id, req.params.id), eq(bids.userId, currentUserId(req))))
       .returning();
     if (!updated) return reply.status(404).send({ error: "Not found" });

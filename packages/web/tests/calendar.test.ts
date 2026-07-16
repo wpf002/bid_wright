@@ -10,7 +10,7 @@ function bid(id: string, deadline: string | null): BidRow {
     gcName: "GC", ownerName: "Owner", bidDeadline: deadline, primaryTrade: "electrical",
     status: "draft", extraction: {} as never, lineItems: [], assumptions: [],
     clarifications: [], exclusions: [], subtotalCents: 0, overheadPercent: 10,
-    profitPercent: 10, totalCents: 0, validityDays: 30,
+    profitPercent: 10, totalCents: 0, validityDays: 30, outcome: null,
     createdAt: "2026-07-01T00:00:00Z", updatedAt: "2026-07-01T00:00:00Z",
   };
 }

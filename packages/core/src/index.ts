@@ -46,6 +46,27 @@ export {
 export type { CostRecord, CostSuggestion } from "./intelligence/matching";
 
 export {
+  decidedBids,
+  winRateByGc,
+  winRateByTrade,
+  overallWinRate,
+  averageBidToAwardDays,
+  averageMarginPercent,
+  lossReasons,
+  winRateTrend,
+  historyWithGc,
+  summarize,
+} from "./intelligence/analytics";
+export type {
+  AnalyticsBid,
+  AnalyticsSummary,
+  WinRate,
+  ReasonCount,
+  TrendPoint,
+  GcHistory,
+} from "./intelligence/analytics";
+
+export {
   detectItb,
   isPdf,
   itbClassifierPrompt,

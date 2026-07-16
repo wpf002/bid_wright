@@ -41,8 +41,16 @@ export interface BidRow {
   profitPercent: number;
   totalCents: number;
   validityDays: number;
+  outcome: BidOutcome | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface BidOutcome {
+  result: "won" | "lost" | "withdrawn";
+  reason?: string;
+  notes?: string | null;
+  notedAt: string;
 }
 
 export type ClauseKind = "assumption" | "clarification" | "exclusion";
@@ -84,6 +92,35 @@ export interface CostSuggestionsResponse {
   /** Fraction of this bid's line items we can price from history. */
   coverage: number;
   suggestions: Record<string, CostSuggestion>;
+}
+
+export interface WinRate {
+  key: string;
+  won: number;
+  lost: number;
+  rate: number | null;
+  wonValueCents: number;
+}
+
+export interface AnalyticsSummary {
+  totalBids: number;
+  decided: number;
+  overall: WinRate;
+  byGc: WinRate[];
+  byTrade: WinRate[];
+  averageBidToAwardDays: number | null;
+  averageMarginPercent: number | null;
+  lossReasons: { reason: string; count: number; share: number }[];
+  trend: { month: string; won: number; lost: number; rate: number | null }[];
+}
+
+export interface GcHistory {
+  gcName: string;
+  total: number;
+  won: number;
+  lost: number;
+  pending: number;
+  rate: number | null;
 }
 
 export interface InboxAddress {
@@ -300,6 +337,10 @@ export const api = {
     request<UserClause>(`/api/clauses/${id}/used`, { method: "POST" }),
 
   deleteClause: (id: string) => request<void>(`/api/clauses/${id}`, { method: "DELETE" }),
+
+  analytics: () => request<AnalyticsSummary>("/api/analytics"),
+
+  gcHistory: (bidId: string) => request<GcHistory | null>(`/api/bids/${bidId}/gc-history`),
 
   inboxAddress: () => request<InboxAddress>("/api/inbox/address"),
 
