@@ -45,4 +45,20 @@ export {
 } from "./intelligence/matching";
 export type { CostRecord, CostSuggestion } from "./intelligence/matching";
 
+export {
+  detectItb,
+  isPdf,
+  itbClassifierPrompt,
+  parseClassifierReply,
+  ITB_THRESHOLD,
+  UNCERTAIN_THRESHOLD,
+} from "./inbox/detect";
+export type {
+  InboundEmail,
+  InboundAttachment,
+  DetectionResult,
+  Classification,
+  DetectOptions,
+} from "./inbox/detect";
+
 export * from "./types";
