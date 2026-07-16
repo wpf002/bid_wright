@@ -17,7 +17,7 @@
     "@fastify/multipart": "^8.2.0",
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.0",
-    "drizzle-orm": "^0.30.0",
+    "drizzle-orm": "^0.31.4",
     "fastify": "^4.26.0",
     "postgres": "^3.4.0",
     "zod": "^3.22.0"

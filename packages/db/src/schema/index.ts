@@ -11,6 +11,29 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+/**
+ * Refresh tokens, stored as a SHA-256 hash so a database leak can't be replayed.
+ * Rotation: using a token revokes it and records the token that replaced it, so
+ * a replayed (already-rotated) token is detectable as theft.
+ */
+export const refreshTokens = pgTable(
+  "refresh_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at").notNull(),
+    revokedAt: timestamp("revoked_at"),
+    /** The token this one was rotated into — presence means it was already used. */
+    replacedBy: text("replaced_by"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    userIdx: index("refresh_tokens_user_idx").on(t.userId),
+    hashIdx: index("refresh_tokens_hash_idx").on(t.tokenHash),
+  }),
+);
+
 export const bids = pgTable(
   "bids",
   {

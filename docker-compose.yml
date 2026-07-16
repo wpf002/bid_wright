@@ -6,8 +6,9 @@ services:
       POSTGRES_USER: bidwright
       POSTGRES_PASSWORD: bidwright
       POSTGRES_DB: bidwright
+    # Host port 5433: 5432 is taken by another project's Postgres.
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - bidwright_pgdata:/var/lib/postgresql/data
     healthcheck:

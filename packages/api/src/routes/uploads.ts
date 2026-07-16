@@ -1,8 +1,18 @@
 import type { FastifyInstance } from "fastify";
 import { extractFromPdf, generateBidResponse } from "@bidwright/core";
 import { db, bids } from "@bidwright/db";
+import { requireAuth, currentUserId } from "../auth/middleware";
+
+/** Parse an ITB deadline string into a Date, or null if it isn't usable. */
+function parseDeadline(value: string | null): Date | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 
 export async function uploadRoutes(app: FastifyInstance) {
+  app.addHook("preHandler", requireAuth);
+
   app.post("/itb", async (req, reply) => {
     const data = await req.file();
     if (!data) return reply.status(400).send({ error: "No file uploaded" });
@@ -14,11 +24,11 @@ export async function uploadRoutes(app: FastifyInstance) {
       const bid = await generateBidResponse(extraction, data.filename);
 
       const [inserted] = await db.insert(bids).values({
+        userId: currentUserId(req),
         itbFileName: bid.itbFileName,
         projectName: bid.extraction.metadata.projectName ?? null,
         gcName: bid.extraction.metadata.ownerOrGc ?? null,
-        bidDeadline: bid.extraction.metadata.bidDeadline
-          ? new Date(bid.extraction.metadata.bidDeadline) : null,
+        bidDeadline: parseDeadline(bid.extraction.metadata.bidDeadline),
         primaryTrade: bid.extraction.primaryTrade,
         status: bid.status,
         extraction: bid.extraction,
