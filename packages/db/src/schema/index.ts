@@ -41,7 +41,9 @@ export const bids = pgTable(
     userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
     itbFileName: text("itb_file_name").notNull(),
     projectName: text("project_name"),
+    /** The GC soliciting the bid — distinct from the project owner. */
     gcName: text("gc_name"),
+    ownerName: text("owner_name"),
     bidDeadline: timestamp("bid_deadline"),
     primaryTrade: text("primary_trade"),
     status: text("status").notNull().default("draft"),

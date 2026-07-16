@@ -95,6 +95,31 @@ describe("validateExtraction", () => {
     expect(res.value.primaryTrade).toBe("plumbing");
   });
 
+  it("keeps owner and generalContractor as separate parties", () => {
+    // Regression: a single ownerOrGc field made the model emit
+    // "Owner: X; GC: Y" into one string, which broke the bid board's GC column.
+    const data = JSON.parse(VALID_EXTRACTION_JSON);
+    const res = validateExtraction(data, { pageCount: 3 });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.value.metadata.owner).toBe("Dallas Independent School District");
+    expect(res.value.metadata.generalContractor).toBe("Turner Ridge Construction, LLC");
+    // neither field may smuggle both parties into one string
+    expect(res.value.metadata.generalContractor).not.toMatch(/owner:/i);
+    expect(res.value.metadata.owner).not.toMatch(/\bGC:/i);
+  });
+
+  it("allows either party to be absent independently", () => {
+    const res = validateExtraction({
+      metadata: { generalContractor: "Solo GC LLC" },
+      scope: [], inclusions: [], exclusions: [], compliance: {}, primaryTrade: "other", warnings: [],
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.value.metadata.generalContractor).toBe("Solo GC LLC");
+    expect(res.value.metadata.owner).toBeNull();
+  });
+
   it("fills missing metadata fields with null", () => {
     const res = validateExtraction({
       metadata: { projectName: "Only Name" },

@@ -39,7 +39,8 @@ export const VALID_EXTRACTION_JSON = JSON.stringify({
   metadata: {
     projectName: "Northside Elementary School — Electrical Renovation",
     projectAddress: "1420 Maple Ave, Dallas, TX 75201",
-    ownerOrGc: "Turner Ridge Construction, LLC",
+    owner: "Dallas Independent School District",
+    generalContractor: "Turner Ridge Construction, LLC",
     bidDeadline: "August 12, 2026, 2:00 PM CST",
     rfiDeadline: "August 5, 2026",
     walkthroughDate: "July 29, 2026, 10:00 AM",

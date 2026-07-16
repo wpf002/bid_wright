@@ -1,0 +1,1 @@
+ALTER TABLE "bids" ADD COLUMN "owner_name" text;

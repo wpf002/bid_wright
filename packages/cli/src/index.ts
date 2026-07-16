@@ -22,7 +22,8 @@ program
     const result = await extractFromPdf(pdfPath);
     if (opts.pretty) {
       console.log(pc.bold(`\nProject: `) + (result.metadata.projectName ?? pc.dim("(not found)")));
-      console.log(pc.bold(`GC: `) + (result.metadata.ownerOrGc ?? pc.dim("(not found)")));
+      console.log(pc.bold(`GC: `) + (result.metadata.generalContractor ?? pc.dim("(not found)")));
+      console.log(pc.bold(`Owner: `) + (result.metadata.owner ?? pc.dim("(not found)")));
       console.log(pc.bold(`Deadline: `) + (result.metadata.bidDeadline ?? pc.dim("(not found)")));
       console.log(pc.bold(`Primary trade: `) + result.primaryTrade);
       console.log(pc.bold(`\nScope items: `) + result.scope.length);

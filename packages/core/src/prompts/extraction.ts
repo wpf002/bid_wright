@@ -11,7 +11,8 @@ Rules you MUST follow:
 4. Rate confidence per scope item on a 0.0-1.0 scale: 1.0 = quoted verbatim from the document; 0.7-0.9 = clearly implied; below 0.7 = inferred and the estimator should verify. Set confidence honestly; low confidence is expected and useful.
 5. Split scope into discrete, biddable line items — one trade activity each. Do not merge unrelated work into a single item.
 6. For compliance (bond, insurance, prevailing wage, Davis-Bacon, licensing, prequalification), only mark a requirement true when the document states it. When unsure, mark false and add a warning.
-7. Put anything you could not determine, any conflicting information, and any assumption you had to make into 'warnings'.
+7. 'owner' and 'generalContractor' are two DIFFERENT parties and must never be combined into one field. The owner commissions the project (a school district, a city, a developer). The general contractor solicits this bid and is who the subcontractor responds to — usually the sender of the ITB and the employer of the listed contact. Put each in its own field, and use null for either one the document doesn't name. Never write a value like "Owner: X; GC: Y" into a single field.
+8. Put anything you could not determine, any conflicting information, and any assumption you had to make into 'warnings'.
 
 Return ONLY valid JSON matching the schema in the user message. No prose. No markdown code fences.`;
 
@@ -19,7 +20,8 @@ const SCHEMA_BLOCK = `{
   "metadata": {
     "projectName": string | null,
     "projectAddress": string | null,
-    "ownerOrGc": string | null,
+    "owner": string | null,
+    "generalContractor": string | null,
     "bidDeadline": string | null,
     "rfiDeadline": string | null,
     "walkthroughDate": string | null,

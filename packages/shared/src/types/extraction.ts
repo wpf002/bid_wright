@@ -14,7 +14,10 @@ export interface ScopeItem {
 export interface ProjectMetadata {
   projectName: string | null;
   projectAddress: string | null;
-  ownerOrGc: string | null;
+  /** The project owner (e.g. the school district). Distinct from the GC. */
+  owner: string | null;
+  /** The general contractor soliciting the bid — who the sub responds to. */
+  generalContractor: string | null;
   bidDeadline: string | null;
   rfiDeadline: string | null;
   walkthroughDate: string | null;

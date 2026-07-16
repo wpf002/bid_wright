@@ -48,7 +48,8 @@ export const scopeItemSchema = z.object({
 export const metadataSchema = z.object({
   projectName: nullableString,
   projectAddress: nullableString,
-  ownerOrGc: nullableString,
+  owner: nullableString,
+  generalContractor: nullableString,
   bidDeadline: nullableString,
   rfiDeadline: nullableString,
   walkthroughDate: nullableString,
@@ -58,7 +59,8 @@ export const metadataSchema = z.object({
 }).partial().transform((m) => ({
   projectName: m.projectName ?? null,
   projectAddress: m.projectAddress ?? null,
-  ownerOrGc: m.ownerOrGc ?? null,
+  owner: m.owner ?? null,
+  generalContractor: m.generalContractor ?? null,
   bidDeadline: m.bidDeadline ?? null,
   rfiDeadline: m.rfiDeadline ?? null,
   walkthroughDate: m.walkthroughDate ?? null,
