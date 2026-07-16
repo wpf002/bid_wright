@@ -1,7 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { HardHat, LayoutDashboard, FileText, Calendar, BarChart3, Settings, LogOut, Plus } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { user, logout } = useAuth();
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
       {/* Sidebar */}
@@ -30,7 +34,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         <div className="border-t border-slate-200 p-3 dark:border-slate-800">
-          <button className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">
+          {user && (
+            <div className="truncate px-3 pb-2 text-xs text-slate-500" title={user.email}>
+              {user.companyName ?? user.email}
+            </div>
+          )}
+          <button
+            onClick={() => void logout()}
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+          >
             <LogOut className="h-4 w-4" />
             Log out
           </button>
