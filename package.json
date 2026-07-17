@@ -21,7 +21,8 @@
     "db:generate": "npm run generate --workspace=@bidwright/db",
     "api:dev": "npm run dev --workspace=@bidwright/api",
     "web:dev": "npm run dev --workspace=@bidwright/web",
-    "clean": "rm -rf packages/*/dist packages/*/node_modules packages/*/.next node_modules"
+    "clean": "rm -rf packages/*/dist packages/*/node_modules packages/*/.next node_modules",
+    "storage:sweep": "npm run storage:sweep --workspace=@bidwright/api --"
   },
   "engines": {
     "node": ">=20.0.0",

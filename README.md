@@ -66,6 +66,37 @@ npx bidwright extract sample-itbs/downtown-office.pdf --pretty
 npx bidwright bid sample-itbs/downtown-office.pdf -o bid.json --pretty
 ```
 
+## Stored documents
+
+A bid keeps the PDF it was extracted from — the editor's click-through
+provenance needs it — plus whatever supporting material arrived with it
+(drawings, addenda, wage determinations). Retention:
+
+| | Policy |
+|---|---|
+| **Primary ITB** | Kept for the life of the bid. Never expires on a timer. |
+| **Supporting files** | Capped at 10 MB per file, 25 MB and 12 files per bid. Skipped files are named in the inbox activity log. |
+| **Bid deleted** | Its files are deleted from disk with it. |
+| **Orphans** | Swept by `npm run storage:sweep`. |
+
+The primary is never aged out on purpose: it's the document the bid rests
+on, it backs the provenance pane, and for a won job it's a business
+record. Supporting files are convenience copies — the originals are still
+in the sender's email — so they can expire.
+
+```bash
+npm run storage:sweep                 # report orphaned files, delete nothing
+npm run storage:sweep -- --delete     # remove them
+npm run storage:sweep -- --retention --delete   # also age out supporting files (180d)
+```
+
+Dry-run is the default because the sweep decides what to delete by absence
+from the database — pointed at the wrong `DATABASE_URL` it would consider
+every file an orphan.
+
+Nothing schedules this yet; it's a command you run. Wiring it to a timer is
+a deploy-time decision.
+
 ## Roadmap
 
 See [ROADMAP.md](./ROADMAP.md) for the full 10-phase build plan through v1.0, including competitive analysis and kill criteria.

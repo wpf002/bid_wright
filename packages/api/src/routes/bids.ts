@@ -5,6 +5,7 @@ import { z } from "zod";
 import { generateBidResponse } from "@bidwright/core";
 import type { ExtractionResult } from "@bidwright/shared";
 import { requireAuth, currentUserId } from "../auth/middleware";
+import { storageKeysForBid, deleteKeys } from "../storage/retention";
 import { recordCostHistory } from "./intelligence";
 
 /**
@@ -157,11 +158,29 @@ export async function bidRoutes(app: FastifyInstance) {
   });
 
   app.delete<{ Params: { id: string } }>("/:id", async (req, reply) => {
+    const userId = currentUserId(req);
+
+    // Read the storage keys first: deleting the bid cascades the upload rows
+    // away, and with them the only record of which files to remove. This is
+    // why deleting a bid used to leave its PDFs on disk permanently.
+    const keys = await storageKeysForBid(req.params.id, userId);
+
     const [deleted] = await db
       .delete(bids)
-      .where(and(eq(bids.id, req.params.id), eq(bids.userId, currentUserId(req))))
+      .where(and(eq(bids.id, req.params.id), eq(bids.userId, userId)))
       .returning();
+    // Nothing deleted means the bid isn't theirs (or is already gone), so the
+    // keys we read are not ours to unlink. Bail before touching the disk.
     if (!deleted) return reply.status(404).send({ error: "Not found" });
+
+    // The rows are gone, so the delete has succeeded whatever the filesystem
+    // does next. A failed unlink is a disk cost the orphan sweep collects —
+    // never a reason to 500 a delete that already happened.
+    const failed = await deleteKeys(keys);
+    if (failed.length > 0) {
+      app.log.warn({ bidId: req.params.id, failed }, "bid deleted but some files remain on disk");
+    }
+
     return reply.status(204).send();
   });
 }

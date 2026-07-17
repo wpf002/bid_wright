@@ -6,7 +6,8 @@
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "storage:sweep": "tsx src/storage/sweep.ts"
   },
   "dependencies": {
     "@bidwright/core": "*",
