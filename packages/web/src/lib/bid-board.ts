@@ -1,3 +1,4 @@
+import { counterparty } from "@bidwright/shared";
 import type { BidRow } from "./api";
 
 /**
@@ -74,7 +75,8 @@ function sortValue(bid: BidRow, key: SortKey): string | number {
     case "project":
       return (bid.projectName ?? bid.itbFileName ?? "").toLowerCase();
     case "gc":
-      return (bid.gcName ?? "").toLowerCase();
+      // Sorts by whoever the bid goes to, matching the column it's under.
+      return (counterparty(bid)?.name ?? "").toLowerCase();
     case "status":
       return bid.status;
     case "updatedAt":

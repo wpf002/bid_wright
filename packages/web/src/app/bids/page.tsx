@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import { Search, Loader2, AlertCircle, RefreshCw, ArrowUp, ArrowDown, FileText, Clock } from "lucide-react";
-import { formatCents } from "@bidwright/shared";
+import { formatCents, counterparty, counterpartyName } from "@bidwright/shared";
 import { api, type BidRow } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth-context";
 import { countdown, relativeTime, matchesQuery, sortBids, type SortKey, type SortDir } from "@/lib/bid-board";
@@ -66,8 +66,10 @@ export default function AllBidsPage() {
     () => [...new Set(bids.map((b) => b.primaryTrade).filter(Boolean))].sort() as string[],
     [bids],
   );
-  const gcs = useMemo(
-    () => [...new Set(bids.map((b) => b.gcName).filter(Boolean))].sort() as string[],
+  // Whoever the bid goes to, GC or agency. Filtering on gcName alone left every
+  // public solicitation out of the dropdown and unreachable from this filter.
+  const counterparties = useMemo(
+    () => [...new Set(bids.map((b) => counterparty(b)?.name).filter(Boolean))].sort() as string[],
     [bids],
   );
 
@@ -76,7 +78,7 @@ export default function AllBidsPage() {
       .filter((b) => matchesQuery(b, query))
       .filter((b) => status === "all" || b.status === status)
       .filter((b) => trade === "all" || b.primaryTrade === trade)
-      .filter((b) => gc === "all" || b.gcName === gc)
+      .filter((b) => gc === "all" || counterparty(b)?.name === gc)
       .filter((b) => {
         if (outcome === "all") return true;
         if (outcome === "open") return !b.outcome;
@@ -162,10 +164,13 @@ export default function AllBidsPage() {
               options={[["all", "All trades"], ...trades.map((t) => [t, t.replace(/_/g, " ")] as [string, string])]}
             />
             <Select
-              label="GC"
+              label="GC / Owner"
               value={gc}
               onChange={setGc}
-              options={[["all", "All GCs"], ...gcs.map((g) => [g, g] as [string, string])]}
+              options={[
+                ["all", "All"],
+                ...counterparties.map((c) => [c, c] as [string, string]),
+              ]}
             />
             <Select
               label="Outcome"
@@ -193,7 +198,7 @@ export default function AllBidsPage() {
                       </span>
                       <span className={`${st.class} shrink-0`}>{st.label}</span>
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">{b.gcName ?? "—"}</p>
+                    <p className="mt-1 text-xs text-slate-500">{counterpartyName(b)}</p>
                     <div className="mt-1.5 flex items-center justify-between text-xs">
                       <span className="font-mono text-slate-500">{formatCents(b.totalCents)}</span>
                       <span className="text-slate-400">{relativeTime(b.updatedAt)}</span>
@@ -210,7 +215,7 @@ export default function AllBidsPage() {
                 <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-900/50">
                   <tr>
                     <Th onClick={() => toggleSort("project")} active={sortKey === "project"} dir={sortDir}>Project</Th>
-                    <Th onClick={() => toggleSort("gc")} active={sortKey === "gc"} dir={sortDir}>GC</Th>
+                    <Th onClick={() => toggleSort("gc")} active={sortKey === "gc"} dir={sortDir}>GC / Owner</Th>
                     <th className="px-4 py-3 font-medium">Trade</th>
                     <Th onClick={() => toggleSort("deadline")} active={sortKey === "deadline"} dir={sortDir}>Deadline</Th>
                     <Th onClick={() => toggleSort("status")} active={sortKey === "status"} dir={sortDir}>Status</Th>
@@ -236,7 +241,7 @@ export default function AllBidsPage() {
                             {b.itbFileName}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{b.gcName ?? "—"}</td>
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{counterpartyName(b)}</td>
                         <td className="px-4 py-3">
                           <span className="badge-slate capitalize">
                             {(b.primaryTrade ?? "other").replace(/_/g, " ")}

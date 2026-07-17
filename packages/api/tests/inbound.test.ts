@@ -1,10 +1,36 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { isDatabaseReachable, uniqueEmail, TEST_DATABASE_URL } from "./helpers/db";
 import {
   parseInboundToken, normalizePostmark, verifyInboundSecret, generateInboundToken,
   inboundAddress, deliveredTo,
 } from "../src/inbox/postmark";
+
+/**
+ * Stub only the model call. detectItb and choosePdf stay real — which PDF
+ * ingestion picks is exactly what these tests are here to check, so mocking the
+ * chooser would leave the bug untested.
+ */
+vi.mock("@bidwright/core", async () => {
+  const actual = await vi.importActual<typeof import("@bidwright/core")>("@bidwright/core");
+  return {
+    ...actual,
+    extractFromPdf: vi.fn(async () => ({
+      metadata: {
+        projectName: "Electrical Upgrade",
+        projectAddress: null, owner: "NOAA", generalContractor: null,
+        bidDeadline: null, rfiDeadline: null, walkthroughDate: null,
+        contactName: null, contactEmail: null, contactPhone: null,
+      },
+      scope: [], inclusions: [], exclusions: [], compliance: [],
+      primaryTrade: "electrical" as const,
+      warnings: [], rawTextPreview: "", pageCount: 1,
+    })),
+  };
+});
+
+/** Smallest thing that satisfies looksLikePdf; extraction is stubbed anyway. */
+const PDF_B64 = Buffer.from("%PDF-1.4\n%%EOF\n").toString("base64");
 
 process.env.DATABASE_URL ??= TEST_DATABASE_URL;
 process.env.INBOUND_WEBHOOK_SECRET ??= "test-inbound-secret";
@@ -229,6 +255,72 @@ describeDb("inbound webhook (real Postgres)", () => {
     });
     expect(res.json().status).toBe("failed");
     expect(res.json().reason).toMatch(/not a PDF/i);
+  });
+
+  /**
+   * A multi-attachment ITB, mirroring SAM.gov posting 08c4a2b7: the
+   * solicitation is listed third, behind two technical exhibits.
+   */
+  const multiAttachment = (messageId: string) => ({
+    MessageID: messageId,
+    FromFull: { Email: "contracting@noaa.gov" },
+    OriginalRecipient: inboundAddress(token, "inbox.bidwright.app"),
+    Subject: "Invitation to Bid — Electrical Upgrade",
+    TextBody: "Solicitation and technical exhibits attached. Bids due 9/9.",
+    Attachments: [
+      { Name: "3_Technical_Exhibit_145027-26-0030.pdf", ContentType: "application/pdf", ContentLength: 900, Content: PDF_B64 },
+      { Name: "Attachment 1. Drawings_1240LU26Q0105.pdf", ContentType: "application/pdf", ContentLength: 900, Content: PDF_B64 },
+      { Name: "Sol_1305M326Q0317.pdf", ContentType: "application/pdf", ContentLength: 900, Content: PDF_B64 },
+      { Name: "Wage Determination CA20260018.pdf", ContentType: "application/pdf", ContentLength: 900, Content: PDF_B64 },
+    ],
+  });
+
+  it("extracts the solicitation, not whichever PDF was attached first", async () => {
+    // The old code took pdfAttachments[0] — here, a technical exhibit.
+    const res = await post(multiAttachment("<multi-1@noaa.gov>"));
+    expect(res.json().status).toBe("created");
+
+    const auth = { authorization: `Bearer ${(await login()).token}` };
+    const bid = (await app.inject({
+      method: "GET",
+      url: `/api/bids/${res.json().bidId}`,
+      headers: auth,
+    })).json();
+
+    expect(bid.itbFileName).toBe("Sol_1305M326Q0317.pdf");
+  });
+
+  it("keeps the drawings and wage determination rather than dropping them", async () => {
+    const res = await post(multiAttachment("<multi-2@noaa.gov>"));
+    const bidId = res.json().bidId;
+
+    const { db, uploads } = await import("@bidwright/db");
+    const { eq } = await import("drizzle-orm");
+    const rows = await db.select().from(uploads).where(eq(uploads.bidId, bidId));
+
+    expect(rows).toHaveLength(4);
+    expect(rows.filter((r) => r.isPrimary).map((r) => r.fileName)).toEqual(["Sol_1305M326Q0317.pdf"]);
+    expect(rows.filter((r) => !r.isPrimary).map((r) => r.fileName).sort()).toEqual([
+      "3_Technical_Exhibit_145027-26-0030.pdf",
+      "Attachment 1. Drawings_1240LU26Q0105.pdf",
+      "Wage Determination CA20260018.pdf",
+    ]);
+  });
+
+  it("serves the solicitation from /file, not a supporting attachment", async () => {
+    // Four uploads now share this bid; the provenance pane must still get the
+    // document the scope was extracted from.
+    const res = await post(multiAttachment("<multi-3@noaa.gov>"));
+    const auth = { authorization: `Bearer ${(await login()).token}` };
+
+    const file = await app.inject({
+      method: "GET",
+      url: `/api/uploads/${res.json().bidId}/file`,
+      headers: auth,
+    });
+
+    expect(file.statusCode).toBe(200);
+    expect(file.headers["content-disposition"]).toContain("Sol_1305M326Q0317.pdf");
   });
 
   async function login() {

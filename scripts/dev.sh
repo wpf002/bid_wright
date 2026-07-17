@@ -34,9 +34,12 @@ fi
 echo "🗄️  Running migrations..."
 npm run db:migrate 2>&1 || echo "   (no migrations yet — first run will generate them)"
 
+WEB_PORT_VALUE=$(sed -n 's/^WEB_PORT=//p' .env | tail -1)
+WEB_PORT_VALUE=${WEB_PORT_VALUE:-3000}
+
 echo ""
 echo "✅ Ready. Now run in two terminals:"
 echo ""
 echo "   Terminal 1:  npm run api:dev    # http://localhost:4000"
-echo "   Terminal 2:  npm run web:dev    # http://localhost:3000"
+echo "   Terminal 2:  npm run web:dev    # http://localhost:${WEB_PORT_VALUE}"
 echo ""

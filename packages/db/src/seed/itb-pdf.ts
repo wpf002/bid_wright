@@ -17,7 +17,8 @@ export interface ItbSpec {
   projectName: string;
   projectAddress: string;
   owner: string;
-  generalContractor: string;
+  /** Null on a public solicitation — the agency solicits subs directly. */
+  generalContractor: string | null;
   bidDeadline: string;
   rfiDeadline: string;
   walkthrough: string;
@@ -86,8 +87,12 @@ export async function buildItbPdf(spec: ItbSpec): Promise<Uint8Array> {
   write(p1, "INVITATION TO BID", { size: 16, bold: true, gap: 10 });
   write(p1, `Project: ${spec.projectName}`);
   write(p1, `Location: ${spec.projectAddress}`);
-  write(p1, `Owner: ${spec.owner}`);
-  write(p1, `General Contractor: ${spec.generalContractor}`, { gap: 8 });
+  write(p1, `Owner: ${spec.owner}`, spec.generalContractor ? {} : { gap: 8 });
+  // A federal ITB names no GC. Printing "General Contractor: null" would put a
+  // fact in the document that the document doesn't state.
+  if (spec.generalContractor) {
+    write(p1, `General Contractor: ${spec.generalContractor}`, { gap: 8 });
+  }
   write(p1, `Bid Due: ${spec.bidDeadline}`, { bold: true });
   write(p1, `Pre-Bid Walkthrough: ${spec.walkthrough}`);
   write(p1, `RFI Deadline: ${spec.rfiDeadline}`, { gap: 8 });

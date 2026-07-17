@@ -7,9 +7,11 @@ import { toast } from "sonner";
 import {
   ArrowLeft, AlertTriangle, Loader2, Plus, Trash2, Check, CloudOff, FileText, Sparkles, Trophy, History,
 } from "lucide-react";
-import { formatCents, type BidLineItem, type ExtractionResult } from "@bidwright/shared";
 import {
-  api, ApiError, type BidRow, type CostSuggestionsResponse, type GcHistory, type CompanyProfile,
+  formatCents, counterpartyName, type BidLineItem, type ExtractionResult,
+} from "@bidwright/shared";
+import {
+  api, ApiError, type BidRow, type CostSuggestionsResponse, type CounterpartyHistory, type CompanyProfile,
 } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth-context";
 import { useAutosave } from "@/lib/use-autosave";
@@ -43,7 +45,7 @@ export default function BidEditorPage() {
   const [drafting, setDrafting] = useState(false);
   const [draft, setDraft] = useState<EditableBid | null>(null);
   const [costs, setCosts] = useState<CostSuggestionsResponse | null>(null);
-  const [gcHistory, setGcHistory] = useState<GcHistory | null>(null);
+  const [history, setHistory] = useState<CounterpartyHistory | null>(null);
   const [outcomeOpen, setOutcomeOpen] = useState(false);
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
@@ -95,8 +97,8 @@ export default function BidEditorPage() {
       .then((c) => !cancelled && setCosts(c))
       .catch(() => undefined);
     api
-      .gcHistory(bidId)
-      .then((h) => !cancelled && setGcHistory(h))
+      .counterpartyHistory(bidId)
+      .then((h) => !cancelled && setHistory(h))
       .catch(() => undefined);
     // Letterhead for the export; a missing profile just means a plain proposal.
     api
@@ -212,7 +214,7 @@ export default function BidEditorPage() {
             {bid.projectName ?? bid.itbFileName}
           </h1>
           <p className="truncate text-xs text-slate-500">
-            {bid.gcName ?? "Unknown GC"} · {bid.itbFileName}
+            {counterpartyName(bid, "No GC named")} · {bid.itbFileName}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
@@ -298,7 +300,7 @@ export default function BidEditorPage() {
                     notDrafted={notDrafted}
                     onDraft={() => void runDraft()}
                     drafting={drafting}
-                    gcHistory={gcHistory}
+                    history={history}
                   />
                 )}
                 {tab === "Line Items" && (
@@ -433,7 +435,7 @@ function Confidence({ value }: { value: number | null }) {
 }
 
 function OverviewTab({
-  extraction, draft, totals, onJump, onChange, notDrafted, onDraft, drafting, gcHistory,
+  extraction, draft, totals, onJump, onChange, notDrafted, onDraft, drafting, history,
 }: {
   extraction: ExtractionResult;
   draft: EditableBid;
@@ -443,28 +445,28 @@ function OverviewTab({
   notDrafted: boolean;
   onDraft: () => void;
   drafting: boolean;
-  gcHistory: GcHistory | null;
+  history: CounterpartyHistory | null;
 }) {
   const m = extraction?.metadata;
   const unpriced = unpricedCount(draft.lineItems);
 
   return (
     <div className="space-y-6">
-      {gcHistory && (
+      {history && (
         <div className="flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm dark:bg-slate-900/60">
           <History className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
           <span className="text-slate-700 dark:text-slate-300">
-            You&apos;ve bid <span className="font-medium">{gcHistory.gcName}</span> {gcHistory.total}{" "}
-            {gcHistory.total === 1 ? "time" : "times"} before
-            {gcHistory.won + gcHistory.lost > 0 ? (
+            You&apos;ve bid <span className="font-medium">{history.name}</span> {history.total}{" "}
+            {history.total === 1 ? "time" : "times"} before
+            {history.won + history.lost > 0 ? (
               <>
-                {" "}— won {gcHistory.won}, lost {gcHistory.lost}
-                {gcHistory.rate !== null && ` (${Math.round(gcHistory.rate * 100)}%)`}
+                {" "}— won {history.won}, lost {history.lost}
+                {history.rate !== null && ` (${Math.round(history.rate * 100)}%)`}
               </>
             ) : (
               " — none decided yet"
             )}
-            {gcHistory.pending > 0 && `, ${gcHistory.pending} still open`}.
+            {history.pending > 0 && `, ${history.pending} still open`}.
           </span>
         </div>
       )}

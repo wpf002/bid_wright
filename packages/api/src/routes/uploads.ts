@@ -77,13 +77,28 @@ export async function uploadRoutes(app: FastifyInstance) {
     }
   });
 
-  /** Stream a bid's source PDF. Scoped to the owner via the bid join. */
+  /**
+   * Stream a bid's source PDF. Scoped to the owner via the bid join.
+   *
+   * A forwarded ITB stores its drawings and addenda as uploads too, so this
+   * filters to the primary rather than taking whichever row Postgres returns
+   * first — otherwise the editor's provenance pane could render a wage
+   * determination and cite it as the source of the scope.
+   */
   app.get<{ Params: { bidId: string } }>("/:bidId/file", async (req, reply) => {
     const [row] = await db
       .select({ storagePath: uploads.storagePath, fileName: uploads.fileName })
       .from(uploads)
       .innerJoin(bids, eq(bids.id, uploads.bidId))
-      .where(and(eq(uploads.bidId, req.params.bidId), eq(bids.userId, currentUserId(req))));
+      .where(
+        and(
+          eq(uploads.bidId, req.params.bidId),
+          eq(bids.userId, currentUserId(req)),
+          eq(uploads.isPrimary, true),
+        ),
+      )
+      .orderBy(uploads.createdAt)
+      .limit(1);
 
     if (!row || !(await pdfExists(row.storagePath))) {
       return reply.status(404).send({ error: "Not found" });

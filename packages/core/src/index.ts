@@ -47,14 +47,14 @@ export type { CostRecord, CostSuggestion } from "./intelligence/matching";
 
 export {
   decidedBids,
-  winRateByGc,
+  winRateByCounterparty,
   winRateByTrade,
   overallWinRate,
   averageBidToAwardDays,
   averageMarginPercent,
   lossReasons,
   winRateTrend,
-  historyWithGc,
+  historyWith,
   summarize,
 } from "./intelligence/analytics";
 export type {
@@ -63,8 +63,11 @@ export type {
   WinRate,
   ReasonCount,
   TrendPoint,
-  GcHistory,
+  CounterpartyHistory,
 } from "./intelligence/analytics";
+
+export { choosePdf, scoreAttachment } from "./inbox/choose-pdf";
+export type { PdfChoice, ScoredAttachment } from "./inbox/choose-pdf";
 
 export {
   detectItb,

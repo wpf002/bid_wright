@@ -106,7 +106,7 @@ export interface AnalyticsSummary {
   totalBids: number;
   decided: number;
   overall: WinRate;
-  byGc: WinRate[];
+  byCounterparty: WinRate[];
   byTrade: WinRate[];
   averageBidToAwardDays: number | null;
   averageMarginPercent: number | null;
@@ -114,8 +114,10 @@ export interface AnalyticsSummary {
   trend: { month: string; won: number; lost: number; rate: number | null }[];
 }
 
-export interface GcHistory {
-  gcName: string;
+export interface CounterpartyHistory {
+  name: string;
+  /** "gc" on private work, "owner" when a public agency solicits directly. */
+  kind: "gc" | "owner";
   total: number;
   won: number;
   lost: number;
@@ -384,7 +386,8 @@ export const api = {
     });
   },
 
-  gcHistory: (bidId: string) => request<GcHistory | null>(`/api/bids/${bidId}/gc-history`),
+  counterpartyHistory: (bidId: string) =>
+    request<CounterpartyHistory | null>(`/api/bids/${bidId}/counterparty-history`),
 
   inboxAddress: () => request<InboxAddress>("/api/inbox/address"),
 

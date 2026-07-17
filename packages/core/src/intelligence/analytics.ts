@@ -1,4 +1,4 @@
-import type { Cents, OutcomeReason, OutcomeResult } from "@bidwright/shared";
+import { counterparty, type Cents, type OutcomeReason, type OutcomeResult } from "@bidwright/shared";
 
 /**
  * Win/loss analytics.
@@ -16,6 +16,8 @@ import type { Cents, OutcomeReason, OutcomeResult } from "@bidwright/shared";
 export interface AnalyticsBid {
   id: string;
   gcName: string | null;
+  /** Public solicitations have no GC, so the agency is the counterparty. */
+  ownerName: string | null;
   primaryTrade: string | null;
   status: string;
   subtotalCents: Cents;
@@ -77,8 +79,15 @@ function groupRates(
     .sort((a, b) => b.won + b.lost - (a.won + a.lost) || b.wonValueCents - a.wonValueCents);
 }
 
-export function winRateByGc(bids: AnalyticsBid[]): WinRate[] {
-  return groupRates(bids, (b) => b.gcName, "Unknown GC");
+/**
+ * Win rate by who you bid to — the GC on private work, the agency on public.
+ *
+ * Grouping on gcName alone put every public bid in one "Unknown GC" bucket,
+ * which hid a real answer ("you win 2 of 3 with the Forest Service") behind a
+ * label that implied the data was missing.
+ */
+export function winRateByCounterparty(bids: AnalyticsBid[]): WinRate[] {
+  return groupRates(bids, (b) => counterparty(b)?.name ?? null, "Unknown");
 }
 
 export function winRateByTrade(bids: AnalyticsBid[]): WinRate[] {
@@ -164,8 +173,9 @@ export function winRateTrend(bids: AnalyticsBid[]): TrendPoint[] {
     });
 }
 
-export interface GcHistory {
-  gcName: string;
+export interface CounterpartyHistory {
+  name: string;
+  kind: "gc" | "owner";
   total: number;
   won: number;
   lost: number;
@@ -174,22 +184,30 @@ export interface GcHistory {
 }
 
 /**
- * This user's track record with one GC — the "you've bid this GC 3x, won 1x"
- * panel. Matched case-insensitively on name, since GC names arrive from
+ * This user's track record with one counterparty — the "you've bid them 3x,
+ * won 1x" panel. Matched case-insensitively, since these names arrive from
  * extraction and casing drifts.
+ *
+ * Compares resolved counterparty to resolved counterparty. Matching the target
+ * against gcName alone would silently return null for every public agency.
  */
-export function historyWithGc(bids: AnalyticsBid[], gcName: string | null): GcHistory | null {
-  const target = gcName?.trim().toLowerCase();
-  if (!target) return null;
+export function historyWith(
+  bids: AnalyticsBid[],
+  target: string | null,
+): CounterpartyHistory | null {
+  const want = target?.trim().toLowerCase();
+  if (!want) return null;
 
-  const theirs = bids.filter((b) => b.gcName?.trim().toLowerCase() === target);
+  const theirs = bids.filter((b) => counterparty(b)?.name.toLowerCase() === want);
   if (theirs.length === 0) return null;
 
   const won = theirs.filter((b) => b.outcome?.result === "won").length;
   const lost = theirs.filter((b) => b.outcome?.result === "lost").length;
   const decided = won + lost;
+  const resolved = counterparty(theirs[0])!;
   return {
-    gcName: theirs[0].gcName as string,
+    name: resolved.name,
+    kind: resolved.kind,
     total: theirs.length,
     won,
     lost,
@@ -202,7 +220,7 @@ export interface AnalyticsSummary {
   totalBids: number;
   decided: number;
   overall: WinRate;
-  byGc: WinRate[];
+  byCounterparty: WinRate[];
   byTrade: WinRate[];
   averageBidToAwardDays: number | null;
   averageMarginPercent: number | null;
@@ -215,7 +233,7 @@ export function summarize(bids: AnalyticsBid[]): AnalyticsSummary {
     totalBids: bids.length,
     decided: decidedBids(bids).length,
     overall: overallWinRate(bids),
-    byGc: winRateByGc(bids),
+    byCounterparty: winRateByCounterparty(bids),
     byTrade: winRateByTrade(bids),
     averageBidToAwardDays: averageBidToAwardDays(bids),
     averageMarginPercent: averageMarginPercent(bids),

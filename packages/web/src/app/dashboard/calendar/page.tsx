@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Loader2, AlertCircle } from "lucide-react";
 import { api, type BidRow } from "@/lib/api";
+import { counterpartyName } from "@bidwright/shared";
 import { useRequireAuth } from "@/lib/auth-context";
 import { buildMonthGrid, chunkWeeks, monthLabel, addMonths, WEEKDAYS } from "@/lib/calendar";
 import { countdown } from "@/lib/bid-board";
@@ -133,7 +134,7 @@ export default function CalendarPage() {
                     <Link
                       key={bid.id}
                       href={`/bids/${bid.id}`}
-                      title={`${bid.projectName ?? bid.itbFileName} — ${bid.gcName ?? "Unknown GC"}`}
+                      title={`${bid.projectName ?? bid.itbFileName} — ${counterpartyName(bid)}`}
                       className="flex items-center gap-1 rounded px-1 py-0.5 text-[11px] leading-tight hover:bg-slate-100 dark:hover:bg-slate-800"
                     >
                       <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${TONE_DOT[tone]}`} />

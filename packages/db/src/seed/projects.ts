@@ -384,4 +384,78 @@ export const DEMO_PROJECTS: DemoProject[] = [
       "Slab area is approximate per the document; verify against the drawings.",
     ],
   },
+  {
+    // A public solicitation, modeled on NOAA 1305M326Q0317. There is no GC:
+    // the agency solicits subs directly, which is true of every federal ITB we
+    // tested. The board falls back to the owner for the counterparty, and this
+    // is the seeded bid that proves it.
+    file: "Sol_1305M326Q0317.pdf",
+    projectName: "NOAA Fisheries Lab — Electrical Service Upgrade",
+    trade: "electrical",
+    deadlineInDays: 9,
+    status: "submitted",
+    itb: {
+      projectName: "NOAA Fisheries Lab — Electrical Service Upgrade",
+      projectAddress: "166 Water St, Woods Hole, MA 02543",
+      owner: "NOAA (National Oceanic and Atmospheric Administration)",
+      generalContractor: null,
+      bidDeadline: "August 18, 2026, 4:00 PM EST",
+      rfiDeadline: "August 4, 2026",
+      walkthrough: "July 30, 2026, 9:00 AM — base access request required 5 days prior",
+      contactName: "D. Whitfield",
+      contactEmail: "contracting@noaa.gov",
+      contactPhone: "(508) 555-0119",
+      division: "DIVISION 26 ELECTRICAL",
+      scope: [
+        "Replace existing 800A main switchboard with new service entrance rated equipment.",
+        "Furnish and install 150 kVA transformer serving the lab annex.",
+        "Install approximately 1,200 LF of rigid galvanized conduit, exterior runs.",
+        "Provide and terminate 600 MCM feeders from the utility transformer pad.",
+        "Furnish and install a 250 kW standby generator connection and ATS.",
+      ],
+      compliance: [
+        "Bid Bond: 20% of bid amount, not to exceed $3,000,000.",
+        "Performance & Payment Bond: 100% required upon award.",
+        "Insurance: General Liability $2,000,000 aggregate; Auto $1,000,000; Workers Comp statutory.",
+        "Davis-Bacon: Federal Davis-Bacon wage rates apply per the attached wage determination.",
+        "Registration: Active SAM.gov registration required prior to award.",
+        "Base Access: Contractor personnel require an approved access request before mobilization.",
+      ],
+      exclusions: ["Utility company fees", "Asbestos or hazardous material abatement"],
+    },
+    scope: [
+      { description: "Replace 800A main switchboard, service entrance rated", quantity: 1, unit: "EA", notes: null, confidence: 0.93 },
+      { description: "Furnish and install 150 kVA transformer, lab annex", quantity: 1, unit: "EA", notes: null, confidence: 0.9 },
+      { description: "Install rigid galvanized conduit, exterior runs", quantity: 1200, unit: "LF", notes: null, confidence: 0.82 },
+      { description: "Provide and terminate 600 MCM feeders from utility pad", quantity: 4, unit: "EA", notes: "Utility coordination required", confidence: 0.78 },
+      { description: "Standby generator connection and automatic transfer switch", quantity: 1, unit: "LS", notes: "250 kW", confidence: 0.75 },
+    ],
+    compliance: {
+      bondRequired: true, bondPercent: 20, insuranceRequired: true,
+      insuranceLimits: ["General Liability $2,000,000 aggregate", "Auto $1,000,000", "Workers Comp statutory"],
+      licenseRequirements: ["Massachusetts Master Electrician license"],
+      prevailingWage: true, unionRequired: false, davisBacon: true, prequalRequired: false,
+      otherRequirements: ["Active SAM.gov registration", "Approved base access request"],
+    },
+    assumptions: [
+      "Utility company coordination and scheduling of the service cutover is performed by others.",
+      "Base access approvals are granted within the timeline stated in the solicitation.",
+      "Work is performed during normal business hours; no shift or weekend premium is included.",
+    ],
+    clarifications: [
+      "What outage windows are available for the switchboard cutover?",
+      "Is the standby generator owner-furnished, or is it part of this scope?",
+      "Please confirm the lead time expectation for base access approval.",
+    ],
+    exclusions: [
+      "Utility company charges, connection fees, and transformer pad work by the utility.",
+      "Asbestos, lead, or other hazardous material abatement.",
+      "Temporary generator rental during the cutover.",
+      "Permits and fees.",
+    ],
+    warnings: [
+      "No general contractor is named — this is a direct federal solicitation.",
+      "Bid bond is 20%, well above the 5% typical of private work; confirm surety capacity.",
+    ],
+  },
 ];

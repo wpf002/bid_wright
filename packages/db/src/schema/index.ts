@@ -1,5 +1,5 @@
 import {
-  pgTable, uuid, text, timestamp, integer, real, index, uniqueIndex,
+  pgTable, uuid, text, timestamp, integer, real, boolean, index, uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { jsonbObject as jsonb } from "./jsonb";
 
@@ -95,6 +95,16 @@ export const uploads = pgTable("uploads", {
   fileName: text("file_name").notNull(),
   fileSize: integer("file_size").notNull(),
   storagePath: text("storage_path").notNull(),
+  /**
+   * The document the bid was extracted from, as opposed to drawings, wage
+   * determinations, and addenda that arrived with it.
+   *
+   * A forwarded ITB carries several PDFs and we keep them all, so "the bid's
+   * PDF" stops being a synonym for "the bid's only upload" — every read of
+   * this table has to say which one it means. Defaults true because every row
+   * that existed before we kept supporting files was the primary.
+   */
+  isPrimary: boolean("is_primary").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

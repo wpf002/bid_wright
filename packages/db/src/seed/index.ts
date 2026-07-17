@@ -1,26 +1,12 @@
-import { config } from "dotenv";
-import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { loadRootEnv } from "../load-env";
 import { buildItbPdf } from "./itb-pdf";
 import { DEMO_PROJECTS, type DemoProject } from "./projects";
 
-// Find the monorepo .env before importing the client, which reads DATABASE_URL
-// at module load. `npm run db:seed` runs with cwd = packages/db.
-const ROOT = (function loadRootEnv(): string {
-  let dir = process.cwd();
-  for (;;) {
-    const candidate = path.join(dir, ".env");
-    if (fs.existsSync(candidate)) {
-      config({ path: candidate });
-      return dir;
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) return process.cwd();
-    dir = parent;
-  }
-})();
+// Must run before importing the client, which reads DATABASE_URL at module load.
+const ROOT = loadRootEnv();
 
 const DEMO_EMAIL = "demo@bidwright.app";
 const DEMO_PASSWORD = "demo-password-123";

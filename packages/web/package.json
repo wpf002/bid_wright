@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "predev": "node scripts/copy-pdf-worker.mjs",
-    "dev": "next dev -p ${WEB_PORT:-3000}",
+    "dev": "sh -c 'P=$(sed -n \"s/^WEB_PORT=//p\" ../../.env 2>/dev/null | tail -1); exec next dev -p ${WEB_PORT:-${P:-3000}}'",
     "prebuild": "node scripts/copy-pdf-worker.mjs",
     "build": "next build",
-    "start": "next start -p ${WEB_PORT:-3000}",
+    "start": "sh -c 'P=$(sed -n \"s/^WEB_PORT=//p\" ../../.env 2>/dev/null | tail -1); exec next start -p ${WEB_PORT:-${P:-3000}}'",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"

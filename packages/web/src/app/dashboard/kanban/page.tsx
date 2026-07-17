@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Loader2, Clock, GripVertical } from "lucide-react";
-import type { BidStatus } from "@bidwright/shared";
+import { counterpartyName, type BidStatus } from "@bidwright/shared";
 import { api, type BidRow } from "@/lib/api";
 import { useRequireAuth } from "@/lib/auth-context";
 import { countdown } from "@/lib/bid-board";
@@ -132,7 +132,7 @@ export default function KanbanPage() {
                           >
                             {bid.projectName ?? bid.itbFileName}
                           </Link>
-                          <p className="mt-0.5 truncate text-xs text-slate-500">{bid.gcName ?? "Unknown GC"}</p>
+                          <p className="mt-0.5 truncate text-xs text-slate-500">{counterpartyName(bid)}</p>
                           <div className={`mt-1.5 flex items-center gap-1 text-xs ${TONE_TEXT[cd.tone]}`}>
                             <Clock className="h-3 w-3" />
                             {cd.label}

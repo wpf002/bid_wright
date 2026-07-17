@@ -108,7 +108,7 @@ describeDb("outcomes + analytics (real Postgres)", () => {
       const s = (await app.inject({ method: "GET", url: "/api/analytics", headers: auth(fresh.token) })).json();
       expect(s.totalBids).toBe(0);
       expect(s.overall.rate).toBeNull();
-      expect(s.byGc).toEqual([]);
+      expect(s.byCounterparty).toEqual([]);
     });
 
     it("computes win rate from real recorded outcomes", async () => {
@@ -124,7 +124,7 @@ describeDb("outcomes + analytics (real Postgres)", () => {
       expect(s.decided).toBe(3);
       expect(s.overall.rate).toBeCloseTo(2 / 3);
 
-      const turner = s.byGc.find((g: { key: string }) => g.key === "Turner Ridge");
+      const turner = s.byCounterparty.find((g: { key: string }) => g.key === "Turner Ridge");
       expect(turner.rate).toBe(0.5);
       expect(s.lossReasons[0]).toMatchObject({ reason: "price_too_high", count: 1 });
       expect(s.trend.length).toBeGreaterThan(0);
@@ -146,7 +146,7 @@ describeDb("outcomes + analytics (real Postgres)", () => {
       const u = await register();
       await seedBid(other.userId, { gcName: "Secret GC" });
       const s = (await app.inject({ method: "GET", url: "/api/analytics", headers: auth(u.token) })).json();
-      expect(s.byGc.some((g: { key: string }) => g.key === "Secret GC")).toBe(false);
+      expect(s.byCounterparty.some((g: { key: string }) => g.key === "Secret GC")).toBe(false);
     });
 
     it("meets the exit criterion: renders with real data after 10 completed bids", async () => {
@@ -158,7 +158,7 @@ describeDb("outcomes + analytics (real Postgres)", () => {
       const s = (await app.inject({ method: "GET", url: "/api/analytics", headers: auth(u.token) })).json();
       expect(s.decided).toBe(10);
       expect(s.overall.rate).not.toBeNull();
-      expect(s.byGc.length).toBe(2);
+      expect(s.byCounterparty.length).toBe(2);
       expect(s.averageBidToAwardDays).not.toBeNull();
       expect(s.averageMarginPercent).toBeCloseTo(18);
       // Win-rate trend is visible.
@@ -177,7 +177,7 @@ describeDb("outcomes + analytics (real Postgres)", () => {
 
       const h = (await app.inject({
         method: "GET",
-        url: `/api/bids/${current}/gc-history`,
+        url: `/api/bids/${current}/counterparty-history`,
         headers: auth(u.token),
       })).json();
       expect(h).toMatchObject({ total: 2, won: 1, lost: 1, rate: 0.5 });
@@ -186,14 +186,14 @@ describeDb("outcomes + analytics (real Postgres)", () => {
     it("returns null for a first-time GC", async () => {
       const u = await register();
       const id = await seedBid(u.userId, { gcName: "Brand New GC" });
-      const res = await app.inject({ method: "GET", url: `/api/bids/${id}/gc-history`, headers: auth(u.token) });
+      const res = await app.inject({ method: "GET", url: `/api/bids/${id}/counterparty-history`, headers: auth(u.token) });
       expect(res.json()).toBeNull();
     });
 
     it("404s another user's bid", async () => {
       const id = await seedBid(user.userId);
       expect(
-        (await app.inject({ method: "GET", url: `/api/bids/${id}/gc-history`, headers: auth(other.token) })).statusCode,
+        (await app.inject({ method: "GET", url: `/api/bids/${id}/counterparty-history`, headers: auth(other.token) })).statusCode,
       ).toBe(404);
     });
   });

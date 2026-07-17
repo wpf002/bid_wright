@@ -1,7 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { db, users, bids, uploads, inboundMessages, costHistory } from "@bidwright/db";
 import { eq, and, isNotNull, desc } from "drizzle-orm";
-import { detectItb, extractFromPdf, type InboundEmail } from "@bidwright/core";
+import {
+  detectItb, extractFromPdf, choosePdf,
+  type InboundEmail, type InboundAttachment,
+} from "@bidwright/core";
 import { savePdf, newStorageKey } from "../storage/files";
 import { parseDeadline, looksLikePdf } from "./uploads";
 import {
@@ -81,6 +84,42 @@ export async function inboundRoutes(app: FastifyInstance) {
   );
 }
 
+/**
+ * Store the attachments we didn't extract from.
+ *
+ * Best-effort by design: a drawing set we failed to save is not a reason to
+ * throw away a bid we successfully extracted, so each failure is logged and
+ * skipped rather than raised.
+ */
+async function saveSupportingPdfs(
+  app: FastifyInstance,
+  bidId: string,
+  supporting: InboundAttachment[],
+  attachmentData: InboundAttachmentData[],
+): Promise<void> {
+  for (const att of supporting) {
+    const data = attachmentData.find((a) => a.fileName === att.fileName);
+    if (!data?.contentBase64) continue;
+
+    const buffer = Buffer.from(data.contentBase64, "base64");
+    if (!looksLikePdf(buffer)) continue;
+
+    try {
+      const key = newStorageKey();
+      await savePdf(key, buffer);
+      await db.insert(uploads).values({
+        bidId,
+        fileName: att.fileName,
+        fileSize: buffer.length,
+        storagePath: key,
+        isPrimary: false,
+      });
+    } catch (err) {
+      app.log.warn({ err, fileName: att.fileName }, "could not store supporting attachment");
+    }
+  }
+}
+
 export interface IngestResult {
   status: "created" | "ignored" | "duplicate" | "failed";
   classification?: string;
@@ -127,10 +166,19 @@ export async function ingestInboundEmail(
     };
   }
 
-  // Take the first PDF: ITBs routinely carry drawings and addenda alongside
-  // the solicitation, and extracting all of them would create duplicate bids.
-  const first = detection.pdfAttachments[0];
-  const data = attachmentData.find((a) => a.fileName === first.fileName);
+  // Which PDF is the solicitation? This used to take pdfAttachments[0] —
+  // whichever the mail client listed first. On real SAM.gov postings that is
+  // routinely the drawing set, and extracting a drawing set produces a bid
+  // whose scope, trade, and deadline are all confidently wrong.
+  const choice = choosePdf(detection.pdfAttachments)!;
+  if (choice.uncertain) {
+    app.log.warn(
+      { fileName: choice.primary.fileName, candidates: detection.pdfAttachments.length },
+      "no attachment looked like a solicitation — extracting a best guess",
+    );
+  }
+
+  const data = attachmentData.find((a) => a.fileName === choice.primary.fileName);
   if (!data?.contentBase64) {
     await db.update(inboundMessages).set({ error: "attachment had no content" })
       .where(eq(inboundMessages.id, record.id));
@@ -174,7 +222,13 @@ export async function ingestInboundEmail(
       fileName: data.fileName,
       fileSize: buffer.length,
       storagePath: storageKey,
+      isPrimary: true,
     });
+
+    // Keep the drawings, wage determination, and addenda. They're not what we
+    // extract from, but they're part of the ITB the estimator has to bid, and
+    // the email they arrived in isn't kept.
+    await saveSupportingPdfs(app, bid.id, choice.supporting, attachmentData);
 
     await db.update(inboundMessages).set({ bidId: bid.id })
       .where(eq(inboundMessages.id, record.id));

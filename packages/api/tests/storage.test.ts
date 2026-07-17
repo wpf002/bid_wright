@@ -2,6 +2,12 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
+import { TEST_DATABASE_URL } from "./helpers/db";
+
+// These tests are pure, but they import the uploads route, which pulls in the
+// db client — and that reads DATABASE_URL at module load. Without this the
+// suite passes or fails on whether the shell happens to export it.
+process.env.DATABASE_URL ??= TEST_DATABASE_URL;
 
 let tmp: string;
 

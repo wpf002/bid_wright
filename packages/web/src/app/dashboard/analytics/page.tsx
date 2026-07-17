@@ -59,7 +59,7 @@ export default function AnalyticsPage() {
             No outcomes recorded yet
           </h2>
           <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
-            Mark a bid Won or Lost — with the reason — and this fills in. Win rate by GC is usually
+            Mark a bid Won or Lost — with the reason — and this fills in. Win rate by GC or owner is usually
             the first thing worth knowing.
           </p>
         </div>
@@ -127,7 +127,11 @@ export default function AnalyticsPage() {
           )}
 
           <div className="mt-8 grid gap-6 lg:grid-cols-2">
-            <RateTable title="Win rate by GC" rows={data.byGc} emptyHint="No decided bids yet." />
+            <RateTable
+              title="Win rate by GC / owner"
+              rows={data.byCounterparty}
+              emptyHint="No decided bids yet."
+            />
             <RateTable title="Win rate by trade" rows={data.byTrade} emptyHint="No decided bids yet." />
           </div>
 

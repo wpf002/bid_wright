@@ -6,6 +6,7 @@ import {
   Search, Clock, AlertCircle, FileText, Plus, Loader2, ArrowUp, ArrowDown, RefreshCw,
 } from "lucide-react";
 import { api, type BidRow } from "@/lib/api";
+import { counterpartyName } from "@bidwright/shared";
 import { useRequireAuth } from "@/lib/auth-context";
 import {
   countdown, relativeTime, matchesQuery, sortBids, dueThisWeek,
@@ -159,7 +160,7 @@ export default function BidBoardPage() {
                       </span>
                       <span className={`${st.class} shrink-0`}>{st.label}</span>
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">{bid.gcName ?? "—"}</p>
+                    <p className="mt-1 text-xs text-slate-500">{counterpartyName(bid)}</p>
                     <div className="mt-2 flex items-center justify-between">
                       <span className={`flex items-center gap-1.5 text-xs ${TONE_CLASS[cd.tone]}`}>
                         <Clock className="h-3.5 w-3.5" />
@@ -182,7 +183,7 @@ export default function BidBoardPage() {
                 <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-900/50">
                   <tr>
                     <Th onClick={() => toggleSort("project")} active={sortKey === "project"} dir={sortDir}>Project</Th>
-                    <Th onClick={() => toggleSort("gc")} active={sortKey === "gc"} dir={sortDir}>GC</Th>
+                    <Th onClick={() => toggleSort("gc")} active={sortKey === "gc"} dir={sortDir}>GC / Owner</Th>
                     <th className="px-4 py-3 font-medium">Trade</th>
                     <Th onClick={() => toggleSort("deadline")} active={sortKey === "deadline"} dir={sortDir}>Deadline</Th>
                     <Th onClick={() => toggleSort("status")} active={sortKey === "status"} dir={sortDir}>Status</Th>
@@ -204,7 +205,7 @@ export default function BidBoardPage() {
                             {bid.itbFileName}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{bid.gcName ?? "—"}</td>
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{counterpartyName(bid)}</td>
                         <td className="px-4 py-3">
                           <span className="badge-slate capitalize">
                             {(bid.primaryTrade ?? "other").replace(/_/g, " ")}

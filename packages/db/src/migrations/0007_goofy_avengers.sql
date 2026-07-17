@@ -1,0 +1,1 @@
+ALTER TABLE "uploads" ADD COLUMN "is_primary" boolean DEFAULT true NOT NULL;

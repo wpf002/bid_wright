@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  decidedBids, winRateByGc, winRateByTrade, overallWinRate, averageBidToAwardDays,
-  averageMarginPercent, lossReasons, winRateTrend, historyWithGc, summarize,
+  decidedBids, winRateByCounterparty, winRateByTrade, overallWinRate, averageBidToAwardDays,
+  averageMarginPercent, lossReasons, winRateTrend, historyWith, summarize,
   type AnalyticsBid,
 } from "../src/intelligence/analytics";
 
@@ -11,6 +11,7 @@ function bid(p: Partial<AnalyticsBid> = {}): AnalyticsBid {
   return {
     id: `b${n}`,
     gcName: "Turner Ridge",
+    ownerName: null,
     primaryTrade: "electrical",
     status: "submitted",
     subtotalCents: 100_000,
@@ -68,9 +69,9 @@ describe("overallWinRate", () => {
   });
 });
 
-describe("winRateByGc", () => {
+describe("winRateByCounterparty", () => {
   it("groups by GC", () => {
-    const rows = winRateByGc([
+    const rows = winRateByCounterparty([
       won({ gcName: "Turner Ridge" }),
       lost({ gcName: "Turner Ridge" }),
       won({ gcName: "Austin Commercial" }),
@@ -82,7 +83,7 @@ describe("winRateByGc", () => {
 
   it("orders by how much evidence there is, not by rate", () => {
     // A 100% rate over one bid must not outrank 60% over ten.
-    const rows = winRateByGc([
+    const rows = winRateByCounterparty([
       won({ gcName: "OneOff" }),
       ...Array.from({ length: 6 }, () => won({ gcName: "Regular" })),
       ...Array.from({ length: 4 }, () => lost({ gcName: "Regular" })),
@@ -90,9 +91,30 @@ describe("winRateByGc", () => {
     expect(rows[0].key).toBe("Regular");
   });
 
-  it("labels missing GCs rather than dropping them", () => {
-    const rows = winRateByGc([won({ gcName: null }), lost({ gcName: "  " })]);
-    expect(rows[0].key).toBe("Unknown GC");
+  it("groups public solicitations under the agency, not one Unknown bucket", () => {
+    // Federal ITBs have no GC. Keying on gcName alone collapsed these three
+    // into "Unknown GC" and hid a real answer.
+    const rows = winRateByCounterparty([
+      won({ gcName: null, ownerName: "Forest Service" }),
+      won({ gcName: null, ownerName: "Forest Service" }),
+      lost({ gcName: null, ownerName: "NOAA" }),
+    ]);
+    expect(rows.find((r) => r.key === "Forest Service")!.won).toBe(2);
+    expect(rows.find((r) => r.key === "NOAA")!.lost).toBe(1);
+    expect(rows.some((r) => r.key === "Unknown")).toBe(false);
+  });
+
+  it("prefers the GC when both are known", () => {
+    const rows = winRateByCounterparty([won({ gcName: "Turner Ridge", ownerName: "Dallas ISD" })]);
+    expect(rows.map((r) => r.key)).toEqual(["Turner Ridge"]);
+  });
+
+  it("labels bids with neither rather than dropping them", () => {
+    const rows = winRateByCounterparty([
+      won({ gcName: null, ownerName: null }),
+      lost({ gcName: "  ", ownerName: null }),
+    ]);
+    expect(rows[0].key).toBe("Unknown");
     expect(rows[0].won + rows[0].lost).toBe(2);
   });
 });
@@ -188,9 +210,9 @@ describe("winRateTrend", () => {
   });
 });
 
-describe("historyWithGc", () => {
+describe("historyWith", () => {
   it("summarizes the track record with one GC", () => {
-    const h = historyWithGc(
+    const h = historyWith(
       [won({ gcName: "Turner Ridge" }), lost({ gcName: "Turner Ridge" }), bid({ gcName: "Turner Ridge" }), won({ gcName: "Other" })],
       "Turner Ridge",
     );
@@ -198,12 +220,24 @@ describe("historyWithGc", () => {
   });
 
   it("matches case-insensitively — extracted GC names drift", () => {
-    expect(historyWithGc([won({ gcName: "Turner Ridge" })], "turner ridge")?.won).toBe(1);
+    expect(historyWith([won({ gcName: "Turner Ridge" })], "turner ridge")?.won).toBe(1);
   });
 
-  it("returns null for an unknown or missing GC", () => {
-    expect(historyWithGc([won({ gcName: "Turner Ridge" })], "Nobody")).toBeNull();
-    expect(historyWithGc([won()], null)).toBeNull();
+  it("returns null for an unknown or missing counterparty", () => {
+    expect(historyWith([won({ gcName: "Turner Ridge" })], "Nobody")).toBeNull();
+    expect(historyWith([won()], null)).toBeNull();
+  });
+
+  it("tracks a public agency the same way it tracks a GC", () => {
+    const h = historyWith(
+      [
+        won({ gcName: null, ownerName: "Forest Service" }),
+        lost({ gcName: null, ownerName: "Forest Service" }),
+        won({ gcName: null, ownerName: "NOAA" }),
+      ],
+      "Forest Service",
+    );
+    expect(h).toMatchObject({ name: "Forest Service", kind: "owner", total: 2, won: 1, lost: 1 });
   });
 });
 
@@ -213,7 +247,7 @@ describe("summarize", () => {
     expect(s.totalBids).toBe(3);
     expect(s.decided).toBe(2);
     expect(s.overall.rate).toBe(0.5);
-    expect(s.byGc.length).toBeGreaterThan(0);
+    expect(s.byCounterparty.length).toBeGreaterThan(0);
     expect(s.trend.length).toBeGreaterThan(0);
   });
 
@@ -221,7 +255,7 @@ describe("summarize", () => {
     const s = summarize([]);
     expect(s).toMatchObject({ totalBids: 0, decided: 0 });
     expect(s.overall.rate).toBeNull();
-    expect(s.byGc).toEqual([]);
+    expect(s.byCounterparty).toEqual([]);
     expect(s.averageBidToAwardDays).toBeNull();
   });
 });
