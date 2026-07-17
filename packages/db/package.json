@@ -20,6 +20,7 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/pg": "^8.11.0",
-    "drizzle-kit": "^0.22.8"
+    "drizzle-kit": "^0.22.8",
+    "pdf-lib": "^1.17.1"
   }
 }
