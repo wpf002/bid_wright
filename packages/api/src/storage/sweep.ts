@@ -17,6 +17,7 @@ async function main() {
   const args = process.argv.slice(2);
   const dryRun = !args.includes("--delete");
   const withRetention = args.includes("--retention");
+  const force = args.includes("--force");
 
   const { sweepOrphans, purgeExpiredSupporting, DEFAULT_SUPPORTING_RETENTION_DAYS } = await import(
     "./retention"
@@ -24,7 +25,13 @@ async function main() {
 
   const mb = (b: number) => `${(b / 1024 / 1024).toFixed(2)} MB`;
 
-  const orphans = await sweepOrphans({ dryRun });
+  const orphans = await sweepOrphans({ dryRun, force });
+  if (orphans.aborted) {
+    // Exit non-zero: this is a refusal, and a caller that scripted the sweep
+    // should hear about it rather than read "0 files" as success.
+    console.error(`\n⛔ Refused: ${orphans.aborted}\n`);
+    process.exit(2);
+  }
   console.log(
     dryRun
       ? `\n🔍 ${orphans.removed.length} orphaned file(s), ${mb(orphans.bytes)} — nothing deleted`

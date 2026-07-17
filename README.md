@@ -77,25 +77,35 @@ provenance needs it — plus whatever supporting material arrived with it
 | **Primary ITB** | Kept for the life of the bid. Never expires on a timer. |
 | **Supporting files** | Capped at 10 MB per file, 25 MB and 12 files per bid. Skipped files are named in the inbox activity log. |
 | **Bid deleted** | Its files are deleted from disk with it. |
-| **Orphans** | Swept by `npm run storage:sweep`. |
+| **Orphans** | Swept automatically every 24h, and by `npm run storage:sweep`. |
 
 The primary is never aged out on purpose: it's the document the bid rests
 on, it backs the provenance pane, and for a won job it's a business
 record. Supporting files are convenience copies — the originals are still
 in the sender's email — so they can expire.
 
+The API runs the sweep itself: first pass an hour after boot (not at boot —
+dev restarts constantly), then daily. It's in-process rather than cron
+because the app has no scheduler and this doesn't justify one; if you ever
+run more than one API instance, move it out. See `.env.example` to retune
+or disable it.
+
+Running it by hand:
+
 ```bash
 npm run storage:sweep                 # report orphaned files, delete nothing
 npm run storage:sweep -- --delete     # remove them
-npm run storage:sweep -- --retention --delete   # also age out supporting files (180d)
+npm run storage:sweep -- --retention --delete   # also age out supporting files
+npm run storage:sweep -- --delete --force       # override the safety refusal
 ```
 
 Dry-run is the default because the sweep decides what to delete by absence
-from the database — pointed at the wrong `DATABASE_URL` it would consider
-every file an orphan.
-
-Nothing schedules this yet; it's a command you run. Wiring it to a timer is
-a deploy-time decision.
+from the database. If nothing on disk is referenced — a wrong
+`DATABASE_URL`, a wrong `UPLOAD_DIR`, or migrations that never ran — that
+looks identical to "every file is garbage", so the sweep refuses instead of
+deleting and says why. `--force` overrides it. That refusal is the only
+safeguard that still works when the sweep runs unattended, since nobody is
+reading a dry-run list at 3am.
 
 ## Roadmap
 

@@ -3,6 +3,7 @@ import path from "node:path";
 import { db, uploads, bids } from "@bidwright/db";
 import { eq, and, lt, inArray } from "drizzle-orm";
 import { uploadDir, deleteFile } from "./files";
+import { shouldRefuseSweep } from "./sweep-policy";
 
 /**
  * What happens to stored PDFs over time.
@@ -27,6 +28,8 @@ import { uploadDir, deleteFile } from "./files";
  * page, and the sweeper cleans the former.
  */
 
+export { shouldRefuseSweep, EMPTY_DB_SUSPICION_THRESHOLD } from "./sweep-policy";
+
 /** Files younger than this are never swept — an upload may be mid-flight. */
 const ORPHAN_GRACE_MS = 60 * 60 * 1000;
 
@@ -44,6 +47,11 @@ export interface SweepResult {
   removed: string[];
   bytes: number;
   dryRun: boolean;
+  /**
+   * Set when the sweep refused to run. The caller should treat this as an
+   * error worth surfacing, not a quiet no-op.
+   */
+  aborted?: string;
 }
 
 /**
@@ -87,12 +95,18 @@ export async function deleteKeys(keys: string[]): Promise<string[]> {
 /**
  * Remove files on disk that no upload row references.
  *
- * Deliberately conservative. It deletes based on absence from the database, so
- * an empty or wrong DB would mean deleting everything — the grace window and
- * the dry-run default are what stand between a misconfigured DATABASE_URL and
- * a user's documents.
+ * Deliberately conservative. It decides what to delete by absence from the
+ * database, so a wrong or un-migrated DATABASE_URL makes every document look
+ * like garbage. Three things stand in the way of that:
+ *
+ *   - dry-run by default, so a human sees the list first;
+ *   - the grace window, so a live upload isn't caught mid-write;
+ *   - the empty-database check below, which is the only one of the three that
+ *     still works when this runs unattended on a timer.
  */
-export async function sweepOrphans(opts: { dryRun?: boolean } = {}): Promise<SweepResult> {
+export async function sweepOrphans(
+  opts: { dryRun?: boolean; force?: boolean } = {},
+): Promise<SweepResult> {
   const dryRun = opts.dryRun ?? true;
   const dir = uploadDir();
 
@@ -109,6 +123,24 @@ export async function sweepOrphans(opts: { dryRun?: boolean } = {}): Promise<Swe
   // Letterheads live in the same directory and are referenced from users, not
   // uploads. Sweeping on the uploads table alone would delete every logo.
   for (const key of await referencedLogoKeys()) referenced.add(key);
+
+  // Count what's actually claimed here, not what the database holds in total:
+  // rows for a different directory prove nothing about the files in front of us.
+  const referencedOnDiskCount = names.filter((n) => referenced.has(n)).length;
+
+  // The scheduled sweep has no human reading a dry-run list, so this is its
+  // only backstop against a wrong DATABASE_URL or a wrong UPLOAD_DIR.
+  if (shouldRefuseSweep({ referencedOnDiskCount, fileCount: names.length, force: opts.force })) {
+    return {
+      removed: [],
+      bytes: 0,
+      dryRun,
+      aborted:
+        `not one of the ${names.length} files in ${dir} is referenced by an upload or logo row — ` +
+        `refusing to treat them all as orphans. Check DATABASE_URL, UPLOAD_DIR, and that ` +
+        `migrations have run. Pass force to override.`,
+    };
+  }
 
   const removed: string[] = [];
   let bytes = 0;
