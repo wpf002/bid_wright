@@ -2,8 +2,8 @@ import type { FastifyInstance } from "fastify";
 import { db, users, bids, uploads, inboundMessages, costHistory } from "@bidwright/db";
 import { eq, and, isNotNull, desc } from "drizzle-orm";
 import {
-  detectItb, extractFromPdf, choosePdf,
-  type InboundEmail, type InboundAttachment,
+  detectItb, extractFromPdf, choosePdf, planSupportingUploads, describeSkipped,
+  type InboundEmail, type InboundAttachment, type SkippedAttachment,
 } from "@bidwright/core";
 import { savePdf, newStorageKey } from "../storage/files";
 import { parseDeadline, looksLikePdf } from "./uploads";
@@ -52,6 +52,18 @@ async function knownGcDomains(userId: string): Promise<string[]> {
   return [...domains];
 }
 
+/**
+ * Fastify defaults to a 1 MB JSON body, which rejected every real ITB with a
+ * 413 before any of this code ran — attachments arrive base64-encoded in the
+ * webhook payload, and base64 inflates by a third. Five of the seven real
+ * solicitations we tested would have bounced.
+ *
+ * Sized against Postmark's own 35 MB inbound cap, plus encoding overhead and
+ * room for the JSON around it. Set on this route alone: the limit exists to
+ * accept a known payload from one provider, not to widen every endpoint.
+ */
+const INBOUND_BODY_LIMIT = 50 * 1024 * 1024;
+
 export async function inboundRoutes(app: FastifyInstance) {
   /**
    * Postmark inbound webhook. Always answers 200 once the secret checks out:
@@ -60,6 +72,7 @@ export async function inboundRoutes(app: FastifyInstance) {
    */
   app.post<{ Querystring: { secret?: string }; Body: PostmarkInbound }>(
     "/postmark",
+    { bodyLimit: INBOUND_BODY_LIMIT },
     async (req, reply) => {
       if (!verifyInboundSecret(req.query.secret, process.env.INBOUND_WEBHOOK_SECRET)) {
         return reply.status(401).send({ error: "Unauthorized" });
@@ -85,19 +98,28 @@ export async function inboundRoutes(app: FastifyInstance) {
 }
 
 /**
- * Store the attachments we didn't extract from.
+ * Store the attachments we didn't extract from, within a disk budget.
  *
  * Best-effort by design: a drawing set we failed to save is not a reason to
  * throw away a bid we successfully extracted, so each failure is logged and
  * skipped rather than raised.
+ *
+ * Returns the skips so the caller can record them — a file we chose not to keep
+ * should be explicable, not just absent.
  */
 async function saveSupportingPdfs(
   app: FastifyInstance,
   bidId: string,
   supporting: InboundAttachment[],
   attachmentData: InboundAttachmentData[],
-): Promise<void> {
-  for (const att of supporting) {
+): Promise<SkippedAttachment[]> {
+  const plan = planSupportingUploads(supporting);
+
+  for (const s of plan.skipped) {
+    app.log.info({ bidId, fileName: s.fileName, size: s.size }, `supporting attachment skipped: ${s.reason}`);
+  }
+
+  for (const att of plan.keep) {
     const data = attachmentData.find((a) => a.fileName === att.fileName);
     if (!data?.contentBase64) continue;
 
@@ -118,6 +140,8 @@ async function saveSupportingPdfs(
       app.log.warn({ err, fileName: att.fileName }, "could not store supporting attachment");
     }
   }
+
+  return plan.skipped;
 }
 
 export interface IngestResult {
@@ -227,10 +251,20 @@ export async function ingestInboundEmail(
 
     // Keep the drawings, wage determination, and addenda. They're not what we
     // extract from, but they're part of the ITB the estimator has to bid, and
-    // the email they arrived in isn't kept.
-    await saveSupportingPdfs(app, bid.id, choice.supporting, attachmentData);
+    // the email they arrived in isn't kept. Large scans are skipped — see
+    // planSupportingUploads for the trade.
+    const skipped = await saveSupportingPdfs(app, bid.id, choice.supporting, attachmentData);
 
-    await db.update(inboundMessages).set({ bidId: bid.id })
+    // The inbox activity log is the answer to "what happened to that email?",
+    // and nothing else lists a bid's attachments — so an unrecorded skip would
+    // be invisible.
+    const note = describeSkipped(skipped);
+    await db
+      .update(inboundMessages)
+      .set({
+        bidId: bid.id,
+        ...(note ? { reasons: [...detection.reasons, note] } : {}),
+      })
       .where(eq(inboundMessages.id, record.id));
 
     return { status: "created", classification: "itb", bidId: bid.id };

@@ -323,6 +323,94 @@ describeDb("inbound webhook (real Postgres)", () => {
     expect(file.headers["content-disposition"]).toContain("Sol_1305M326Q0317.pdf");
   });
 
+  it("accepts an ITB email the size a real one actually is", async () => {
+    // Fastify's default 1 MB JSON body rejected every real ITB with a 413
+    // before any ingestion code ran. Attachments arrive base64-encoded, and
+    // base64 inflates by a third, so a 2 MB PDF is a ~2.7 MB payload.
+    const big = Buffer.concat([
+      Buffer.from("%PDF-1.4\n"),
+      Buffer.alloc(2 * 1024 * 1024, 0x41),
+    ]).toString("base64");
+
+    const res = await post({
+      MessageID: "<realistic-size@noaa.gov>",
+      FromFull: { Email: "contracting@noaa.gov" },
+      OriginalRecipient: inboundAddress(token, "inbox.bidwright.app"),
+      Subject: "Invitation to Bid — Electrical Upgrade",
+      TextBody: "Solicitation attached. Bids due 9/9.",
+      Attachments: [
+        { Name: "Sol_1305M326Q0317.pdf", ContentType: "application/pdf", ContentLength: 2_097_161, Content: big },
+      ],
+    });
+
+    expect(res.statusCode).not.toBe(413);
+    expect(res.json().status).toBe("created");
+  });
+
+  it("skips a scanned drawing set instead of writing it to disk forever", async () => {
+    // 12 MB of "scan" — over the 10 MB per-file cap for supporting material we
+    // never read. The solicitation is still extracted and kept.
+    const scan = Buffer.concat([
+      Buffer.from("%PDF-1.4\n"),
+      Buffer.alloc(12 * 1024 * 1024, 0x42),
+    ]).toString("base64");
+
+    const res = await post({
+      MessageID: "<huge-scan@noaa.gov>",
+      FromFull: { Email: "contracting@noaa.gov" },
+      OriginalRecipient: inboundAddress(token, "inbox.bidwright.app"),
+      Subject: "Invitation to Bid — Electrical Upgrade",
+      TextBody: "Solicitation and exhibits attached. Bids due 9/9.",
+      Attachments: [
+        { Name: "Sol_1305M326Q0317.pdf", ContentType: "application/pdf", ContentLength: 900, Content: PDF_B64 },
+        { Name: "SOW_Pictures_scanned.pdf", ContentType: "application/pdf", ContentLength: 12_582_921, Content: scan },
+        { Name: "Addendum 1.pdf", ContentType: "application/pdf", ContentLength: 900, Content: PDF_B64 },
+      ],
+    });
+    expect(res.json().status).toBe("created");
+
+    const { db, uploads } = await import("@bidwright/db");
+    const { eq } = await import("drizzle-orm");
+    const rows = await db.select().from(uploads).where(eq(uploads.bidId, res.json().bidId));
+
+    // The scan is absent; the solicitation and the small addendum are kept.
+    expect(rows.map((r) => r.fileName).sort()).toEqual([
+      "Addendum 1.pdf",
+      "Sol_1305M326Q0317.pdf",
+    ]);
+  });
+
+  it("says in the activity log why an attachment wasn't kept", async () => {
+    // Nothing in the UI lists a bid's attachments, so a silent skip would be
+    // invisible — the inbox log is where the user can see it.
+    const scan = Buffer.concat([
+      Buffer.from("%PDF-1.4\n"),
+      Buffer.alloc(12 * 1024 * 1024, 0x42),
+    ]).toString("base64");
+
+    await post({
+      MessageID: "<skip-note@noaa.gov>",
+      FromFull: { Email: "contracting@noaa.gov" },
+      OriginalRecipient: inboundAddress(token, "inbox.bidwright.app"),
+      Subject: "Invitation to Bid — Electrical Upgrade",
+      TextBody: "Solicitation and exhibits attached. Bids due 9/9.",
+      Attachments: [
+        { Name: "Sol_1305M326Q0317.pdf", ContentType: "application/pdf", ContentLength: 900, Content: PDF_B64 },
+        { Name: "drawings_scanned.pdf", ContentType: "application/pdf", ContentLength: 12_582_921, Content: scan },
+      ],
+    });
+
+    const messages = (await app.inject({
+      method: "GET",
+      url: "/api/inbox/messages",
+      headers: { authorization: `Bearer ${(await login()).token}` },
+    })).json();
+
+    const row = messages.find((m: { messageId: string }) => m.messageId === "<skip-note@noaa.gov>");
+    expect(JSON.stringify(row.reasons)).toMatch(/drawings_scanned\.pdf/);
+    expect(JSON.stringify(row.reasons)).toMatch(/too large/i);
+  });
+
   async function login() {
     const [user] = await (await import("@bidwright/db")).db
       .select()

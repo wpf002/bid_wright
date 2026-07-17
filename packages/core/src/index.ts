@@ -66,8 +66,18 @@ export type {
   CounterpartyHistory,
 } from "./intelligence/analytics";
 
-export { choosePdf, scoreAttachment } from "./inbox/choose-pdf";
+export { choosePdf, scoreAttachment, normalizeFileName } from "./inbox/choose-pdf";
 export type { PdfChoice, ScoredAttachment } from "./inbox/choose-pdf";
+
+export {
+  planSupportingUploads,
+  describeSkipped,
+  DEFAULT_SUPPORTING_LIMITS,
+  MAX_SUPPORTING_FILE_BYTES,
+  MAX_SUPPORTING_TOTAL_BYTES,
+  MAX_SUPPORTING_FILES,
+} from "./inbox/supporting-budget";
+export type { SupportingLimits, SupportingPlan, SkippedAttachment } from "./inbox/supporting-budget";
 
 export {
   detectItb,
