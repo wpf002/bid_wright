@@ -175,6 +175,13 @@ async function seed() {
       assumptions: real.data.assumptions,
       clarifications: real.data.clarifications,
       exclusions: real.data.exclusions,
+      // Priced so the demo has one bid with a real total flowing through the
+      // markup. The numbers are illustrative placeholders (see the asset's
+      // _pricingNote), not a real estimate.
+      subtotalCents: real.data.subtotalCents ?? 0,
+      overheadPercent: real.data.overheadPercent ?? 10,
+      profitPercent: real.data.profitPercent ?? 10,
+      totalCents: real.data.totalCents ?? 0,
     })
     .returning();
 
@@ -187,7 +194,8 @@ async function seed() {
 
   console.log(
     `   ${real.data.itbFileName} — ${(real.pdf.length / 1024).toFixed(0)} KB, ` +
-      `${real.data.extraction.scope.length} scope items (REAL federal RFQ, ${real.data.extraction.pageCount}p)`,
+      `${real.data.extraction.scope.length} scope items, priced $${((real.data.totalCents ?? 0) / 100).toLocaleString()} ` +
+      `(REAL federal RFQ, ${real.data.extraction.pageCount}p)`,
   );
 
   console.log(`✅ Seeded ${DEMO_PROJECTS.length + 1} bids (${DEMO_PROJECTS.length} synthetic + 1 real)`);

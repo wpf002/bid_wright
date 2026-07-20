@@ -202,8 +202,8 @@
       "confidence": null,
       "sourcePage": 18,
       "description": "Panel Repairs Room 109: Repair faulty installation in panel F2 (#647) per McKinstry Survey - install K.O. seals (3\", 1\", 3/4\", 1/2\"), correct CKT-26,28,30 (2 wires per, wrong size), provide wire for 100A 3-pole. Demo and make safe exposed wires/unused electrical equipment.",
-      "unitCostCents": 0,
-      "totalCostCents": 0
+      "unitCostCents": 1200000,
+      "totalCostCents": 1200000
     },
     {
       "id": "30f7b090-690e-4f0a-9a7f-35783749a1f1",
@@ -213,8 +213,8 @@
       "confidence": null,
       "sourcePage": 18,
       "description": "NE Stairwell and Hangar Entry: Demo old/unused/unsafe panels, disconnects, fuse boxes (#654, S6, #651, old empty panel, old Panel B single phase, old Panel B three phase). Provide new panel outside stairwell with main disconnect and arc flash notation if unsafe panels in use; rewire downstream subpanels. Remove pass-through Panel F and reroute power to Panel GG on Level 2. Repair Panel DD. Cut dead wires, remove to nearest J-Box.",
-      "unitCostCents": 0,
-      "totalCostCents": 0
+      "unitCostCents": 3400000,
+      "totalCostCents": 3400000
     },
     {
       "id": "8afff9af-a79c-4b58-8cfe-554438cf40a4",
@@ -224,8 +224,8 @@
       "confidence": null,
       "sourcePage": 19,
       "description": "Center Wind Tunnel: Repair associated equipment (Items #657, #658, #659) per McKinstry Hangar 32 Remediation Electrical Facility Assessment and any code problems discovered. Demo and make safe exposed wires/unused electrical equipment.",
-      "unitCostCents": 0,
-      "totalCostCents": 0
+      "unitCostCents": 1400000,
+      "totalCostCents": 1400000
     },
     {
       "id": "9a2fe759-5257-47a0-9cb7-83ae753a27e6",
@@ -235,8 +235,8 @@
       "confidence": null,
       "sourcePage": 19,
       "description": "SE Stairwell and Hangar Entry: Demo old/unused/unsafe panels, disconnects, fuse boxes (#657, #658, #659, #664, #666, old empty panel, old Panel C single/three phase, Panel CB-1 #663). Provide new panel outside stairwell with main disconnect and arc flash notation if needed; rewire downstream subpanels. Replace Panel CB-1 with new panel to serve existing loads and panel II. Cut dead wires, remove to nearest J-Box.",
-      "unitCostCents": 0,
-      "totalCostCents": 0
+      "unitCostCents": 3000000,
+      "totalCostCents": 3000000
     },
     {
       "id": "9dbcec46-dd2c-4d66-86e5-632edfbfef2e",
@@ -246,8 +246,8 @@
       "confidence": null,
       "sourcePage": 19,
       "description": "SW Stairwell and Hangar Entry: Demo old/unused/unsafe panels, disconnects, fuse boxes ((2) old empty panels, Panel D #679, Panel P2 #680, FU-1 #668). Provide new panel outside stairwell with main disconnect and arc flash notation if unsafe panels in use; rewire downstream subpanels. Make repairs per McKinstry Assessment. Cut dead wires, remove to nearest J-Box.",
-      "unitCostCents": 0,
-      "totalCostCents": 0
+      "unitCostCents": 2600000,
+      "totalCostCents": 2600000
     },
     {
       "id": "1a524e46-2a65-4b6f-b3e5-016e6ad9ff26",
@@ -257,8 +257,8 @@
       "confidence": null,
       "sourcePage": 20,
       "description": "NE Hangar Entry (OPTIONAL CLIN): Provide services including engineering to install new Generator Manual Transfer Switch and portable generator power connection to power Panel DD. Panel serves a critical freezer - coordination required prior to work.",
-      "unitCostCents": 0,
-      "totalCostCents": 0
+      "unitCostCents": 2400000,
+      "totalCostCents": 2400000
     },
     {
       "id": "a05b415d-366b-4cbf-9e08-bf79f0804423",
@@ -268,8 +268,8 @@
       "confidence": null,
       "sourcePage": 17,
       "description": "Provide as-built one-line electrical diagrams with breaker/wire sizes and updated panel schedules; provide short circuit arc fault calculations for newly installed panels and label arc fault ratings. Deliverable stamped by an Electrical Professional Engineer licensed in the State of Washington.",
-      "unitCostCents": 0,
-      "totalCostCents": 0
+      "unitCostCents": 1100000,
+      "totalCostCents": 1100000
     }
   ],
   "assumptions": [
@@ -317,5 +317,10 @@
     "Cutting, patching, and repair of finished surfaces beyond the scoped sheetrock repair at demo openings.",
     "Firestopping and fire-rated penetration sealing not associated with the specified K.O. seals.",
     "Payment and performance bonds are available at additional cost if required and are not included unless directed."
-  ]
+  ],
+  "subtotalCents": 15100000,
+  "overheadPercent": 10,
+  "profitPercent": 10,
+  "totalCents": 18120000,
+  "_pricingNote": "Illustrative placeholder lump sums, not a real estimate — demo data only."
 }
