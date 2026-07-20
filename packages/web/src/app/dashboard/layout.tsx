@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  FileSignature, LayoutDashboard, List, Columns3, Calendar, BarChart3, Settings, LogOut, Plus,
+  FileSignature, LayoutDashboard, Columns3, Calendar, BarChart3, Settings, LogOut, Plus,
   Menu, X, Sun, Moon, Command,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
@@ -73,7 +73,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <nav className="mt-6 flex-1 space-y-1 px-3 text-sm">
           <NavItem href="/dashboard" icon={LayoutDashboard} onNavigate={() => setNavOpen(false)}>Bid Board</NavItem>
-          <NavItem href="/dashboard/bids" icon={List} onNavigate={() => setNavOpen(false)}>All Bids</NavItem>
           <NavItem href="/dashboard/kanban" icon={Columns3} onNavigate={() => setNavOpen(false)}>Kanban</NavItem>
           <NavItem href="/dashboard/calendar" icon={Calendar} onNavigate={() => setNavOpen(false)}>Calendar</NavItem>
           <NavItem href="/dashboard/analytics" icon={BarChart3} onNavigate={() => setNavOpen(false)}>Analytics</NavItem>

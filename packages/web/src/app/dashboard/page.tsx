@@ -6,7 +6,7 @@ import {
   Search, Clock, AlertCircle, FileText, Plus, Loader2, ArrowUp, ArrowDown, RefreshCw,
 } from "lucide-react";
 import { api, type BidRow } from "@/lib/api";
-import { counterpartyName } from "@bidwright/shared";
+import { counterparty, counterpartyName } from "@bidwright/shared";
 import { useRequireAuth } from "@/lib/auth-context";
 import {
   countdown, relativeTime, matchesQuery, sortBids, dueThisWeek,
@@ -32,6 +32,8 @@ const TONE_CLASS: Record<string, string> = {
 
 const STATUS_FILTERS = ["all", "draft", "in_review", "submitted", "won", "lost"] as const;
 
+type Outcome = "all" | "open" | "won" | "lost" | "withdrawn";
+
 export default function BidBoardPage() {
   const { loading: authLoading, user } = useRequireAuth();
   const [bids, setBids] = useState<BidRow[]>([]);
@@ -39,6 +41,9 @@ export default function BidBoardPage() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<string>("all");
+  const [trade, setTrade] = useState<string>("all");
+  const [gc, setGc] = useState<string>("all");
+  const [outcome, setOutcome] = useState<Outcome>("all");
   const [sortKey, setSortKey] = useState<SortKey>("deadline");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
@@ -57,12 +62,30 @@ export default function BidBoardPage() {
     if (user) void load();
   }, [user, load]);
 
+  // Filter options come from the data, so a filter never offers an empty result.
+  const trades = useMemo(
+    () => [...new Set(bids.map((b) => b.primaryTrade).filter(Boolean))].sort() as string[],
+    [bids],
+  );
+  // Whoever the bid goes to, GC or agency — keyed the same way the board displays it.
+  const counterparties = useMemo(
+    () => [...new Set(bids.map((b) => counterparty(b)?.name).filter(Boolean))].sort() as string[],
+    [bids],
+  );
+
   const visible = useMemo(() => {
     const filtered = bids
       .filter((b) => matchesQuery(b, query))
-      .filter((b) => status === "all" || b.status === status);
+      .filter((b) => status === "all" || b.status === status)
+      .filter((b) => trade === "all" || b.primaryTrade === trade)
+      .filter((b) => gc === "all" || counterparty(b)?.name === gc)
+      .filter((b) => {
+        if (outcome === "all") return true;
+        if (outcome === "open") return !b.outcome;
+        return b.outcome?.result === outcome;
+      });
     return sortBids(filtered, sortKey, sortDir);
-  }, [bids, query, status, sortKey, sortDir]);
+  }, [bids, query, status, trade, gc, outcome, sortKey, sortDir]);
 
   const weekCount = useMemo(() => dueThisWeek(bids).length, [bids]);
 
@@ -141,6 +164,33 @@ export default function BidBoardPage() {
                 </button>
               ))}
             </div>
+
+            {/* Attribute filters folded in from the old All Bids page. Status
+                stays as pills above — it's the one you reach for most. */}
+            <Select
+              label="Trade"
+              value={trade}
+              onChange={setTrade}
+              options={[["all", "All trades"], ...trades.map((t) => [t, t.replace(/_/g, " ")] as [string, string])]}
+            />
+            <Select
+              label="GC / Owner"
+              value={gc}
+              onChange={setGc}
+              options={[["all", "All GCs / owners"], ...counterparties.map((c) => [c, c] as [string, string])]}
+            />
+            <Select
+              label="Outcome"
+              value={outcome}
+              onChange={(v) => setOutcome(v as Outcome)}
+              options={[
+                ["all", "Any outcome"],
+                ["open", "No outcome yet"],
+                ["won", "Won"],
+                ["lost", "Lost"],
+                ["withdrawn", "Withdrawn"],
+              ]}
+            />
           </div>
 
           <ul className="space-y-2 sm:hidden">
@@ -231,7 +281,15 @@ export default function BidBoardPage() {
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-3"><span className={st.class}>{st.label}</span></td>
+                        <td className="px-4 py-3">
+                          <span className={st.class}>{st.label}</span>
+                          {/* Why it was lost matters more than that it was lost. */}
+                          {bid.outcome?.reason && (
+                            <div className="mt-0.5 text-[11px] capitalize text-slate-400">
+                              {bid.outcome.reason.replace(/_/g, " ")}
+                            </div>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-slate-500">{relativeTime(bid.updatedAt)}</td>
                       </tr>
                     );
@@ -244,12 +302,36 @@ export default function BidBoardPage() {
 
           {visible.length === 0 && (
             <div className="card px-4 py-12 text-center text-sm text-slate-500">
-              No bids match {query ? `“${query}”` : "this filter"}.
+              No bids match {query ? `“${query}”` : "these filters"}.
             </div>
           )}
         </>
       )}
     </div>
+  );
+}
+
+function Select({
+  label, value, onChange, options,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: [string, string][];
+}) {
+  return (
+    <select
+      aria-label={label}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="input w-auto py-1.5 text-xs capitalize"
+    >
+      {options.map(([v, l]) => (
+        <option key={v} value={v}>
+          {l}
+        </option>
+      ))}
+    </select>
   );
 }
 
