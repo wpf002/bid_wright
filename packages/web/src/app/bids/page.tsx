@@ -108,10 +108,10 @@ export default function AllBidsPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-8 sm:py-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">All bids</h1>
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">All Bids</h1>
         <p className="mt-1 text-sm text-slate-500">
-          {visible.length} of {bids.length} {bids.length === 1 ? "bid" : "bids"}
-          {totalValue > 0 && ` · ${formatCents(totalValue)} shown`}
+          {visible.length} of {bids.length} {bids.length === 1 ? "Bid" : "Bids"}
+          {totalValue > 0 && ` · ${formatCents(totalValue)} Shown`}
         </p>
       </div>
 
@@ -230,26 +230,33 @@ export default function AllBidsPage() {
                     return (
                       <tr key={b.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                         <td className="px-4 py-3">
+                          {/* One line, capped: long names ellipsize with the full
+                              text on hover rather than widening the table. */}
                           <Link
                             href={`/bids/${b.id}`}
-                            className="font-medium text-slate-900 hover:text-amber-600 dark:text-slate-100"
+                            title={b.projectName ?? b.itbFileName}
+                            className="block max-w-[18rem] truncate font-medium text-slate-900 hover:text-amber-600 dark:text-slate-100"
                           >
                             {b.projectName ?? b.itbFileName}
                           </Link>
                           <div className="mt-0.5 flex items-center gap-1 text-xs text-slate-400">
-                            <FileText className="h-3 w-3" />
-                            {b.itbFileName}
+                            <FileText className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{b.itbFileName}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{counterpartyName(b)}</td>
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
+                          <div className="max-w-[15rem] truncate" title={counterpartyName(b)}>
+                            {counterpartyName(b)}
+                          </div>
+                        </td>
                         <td className="px-4 py-3">
                           <span className="badge-slate capitalize">
                             {(b.primaryTrade ?? "other").replace(/_/g, " ")}
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <span className={`flex items-center gap-1.5 text-xs ${TONE[cd.tone]}`}>
-                            <Clock className="h-3 w-3" />
+                          <span className={`flex items-center gap-1.5 whitespace-nowrap text-xs ${TONE[cd.tone]}`}>
+                            <Clock className="h-3 w-3 shrink-0" />
                             {cd.label}
                           </span>
                         </td>
