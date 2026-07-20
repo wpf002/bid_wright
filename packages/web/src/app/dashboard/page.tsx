@@ -193,15 +193,28 @@ export default function BidBoardPage() {
                     return (
                       <tr key={bid.id} className="group hover:bg-slate-50 dark:hover:bg-slate-800/50">
                         <td className="px-4 py-3">
-                          <Link href={`/bids/${bid.id}`} className="whitespace-nowrap font-medium text-slate-900 hover:text-amber-600 dark:text-slate-100">
+                          {/* One line, capped so a long project name ellipsizes
+                              instead of widening the table. Full name on hover. */}
+                          <Link
+                            href={`/bids/${bid.id}`}
+                            title={bid.projectName ?? bid.itbFileName}
+                            className="block max-w-[18rem] truncate font-medium text-slate-900 hover:text-amber-600 dark:text-slate-100"
+                          >
                             {bid.projectName ?? bid.itbFileName}
                           </Link>
                           <div className="mt-0.5 flex items-center gap-1 text-xs text-slate-400">
-                            <FileText className="h-3 w-3" />
-                            {bid.itbFileName}
+                            <FileText className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{bid.itbFileName}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{counterpartyName(bid)}</td>
+                        <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
+                          {/* One line, but capped: a 57-char federal agency name
+                              would otherwise push the table past the viewport and
+                              hide Status/Last touched behind a scroll. Full name on hover. */}
+                          <div className="max-w-[15rem] truncate" title={counterpartyName(bid)}>
+                            {counterpartyName(bid)}
+                          </div>
+                        </td>
                         <td className="px-4 py-3">
                           <span className="badge-slate capitalize">
                             {(bid.primaryTrade ?? "other").replace(/_/g, " ")}
