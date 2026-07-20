@@ -77,6 +77,21 @@ function lineItemsFor(p: DemoProject) {
   }));
 }
 
+/**
+ * One genuinely real bid: NOAA solicitation 1305M326Q0317, the actual 65-page
+ * federal RFQ, with the extraction and draft a real Opus run produced from it.
+ * The other demo bids carry synthetic PDFs; this one ships the real document so
+ * provenance click-through lands on the real pages (17–20), and so the demo has
+ * one example that isn't made up. The PDF and its extraction live in ./assets,
+ * resolved from the repo root so this works regardless of the seed's cwd.
+ */
+async function loadRealBidAsset() {
+  const dir = path.join(ROOT, "packages/db/src/seed/assets");
+  const pdf = await fsp.readFile(path.join(dir, "noaa-wrc-h32.pdf"));
+  const data = JSON.parse(await fsp.readFile(path.join(dir, "noaa-wrc-h32.json"), "utf8"));
+  return { pdf, data };
+}
+
 async function seed() {
   const { db } = await import("../client");
   const { users, bids, uploads } = await import("../schema");
@@ -138,7 +153,44 @@ async function seed() {
     console.log(`   ${p.file} — ${(pdf.length / 1024).toFixed(0)} KB, ${p.scope.length} scope items`);
   }
 
-  console.log(`✅ Seeded ${DEMO_PROJECTS.length} bids with real ITB PDFs`);
+  // The one real bid: real PDF, real extraction, real generated draft.
+  const real = await loadRealBidAsset();
+  const realKey = `${randomUUID()}.pdf`;
+  await fsp.writeFile(path.join(dir, realKey), real.pdf);
+
+  const [realBid] = await db
+    .insert(bids)
+    .values({
+      userId: user.id,
+      itbFileName: real.data.itbFileName,
+      projectName: real.data.projectName,
+      gcName: real.data.gcName,
+      ownerName: real.data.ownerName,
+      primaryTrade: real.data.primaryTrade,
+      status: real.data.status,
+      bidDeadline:
+        real.data.deadlineInDays === null ? null : new Date(now + real.data.deadlineInDays * DAY),
+      extraction: real.data.extraction,
+      lineItems: real.data.lineItems,
+      assumptions: real.data.assumptions,
+      clarifications: real.data.clarifications,
+      exclusions: real.data.exclusions,
+    })
+    .returning();
+
+  await db.insert(uploads).values({
+    bidId: realBid.id,
+    fileName: real.data.itbFileName,
+    fileSize: real.pdf.length,
+    storagePath: realKey,
+  });
+
+  console.log(
+    `   ${real.data.itbFileName} — ${(real.pdf.length / 1024).toFixed(0)} KB, ` +
+      `${real.data.extraction.scope.length} scope items (REAL federal RFQ, ${real.data.extraction.pageCount}p)`,
+  );
+
+  console.log(`✅ Seeded ${DEMO_PROJECTS.length + 1} bids (${DEMO_PROJECTS.length} synthetic + 1 real)`);
   console.log(`   Log in as: ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
   process.exit(0);
 }

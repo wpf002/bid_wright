@@ -1,0 +1,321 @@
+{
+  "itbFileName": "Sol_1305M326Q0317.pdf",
+  "projectName": "WRC H32 Electrical Repairs (NOAA Western Regional Center Electrical Repairs Services)",
+  "ownerName": "NOAA (National Oceanic and Atmospheric Administration) / U.S. Department of Commerce",
+  "gcName": null,
+  "primaryTrade": "electrical",
+  "status": "in_review",
+  "deadlineInDays": 23,
+  "extraction": {
+    "scope": [
+      {
+        "id": "CLIN-0001",
+        "unit": null,
+        "notes": "This is the government-provided scope; contractor must confirm existing conditions via site visit.",
+        "trade": "electrical",
+        "quantity": null,
+        "confidence": 0.95,
+        "sourcePage": 18,
+        "description": "Panel Repairs Room 109: Repair faulty installation in panel F2 (#647) per McKinstry Survey - install K.O. seals (3\", 1\", 3/4\", 1/2\"), correct CKT-26,28,30 (2 wires per, wrong size), provide wire for 100A 3-pole. Demo and make safe exposed wires/unused electrical equipment."
+      },
+      {
+        "id": "CLIN-0002",
+        "unit": null,
+        "notes": "Transite (asbestos) wall between stairwell and hangar must not be disturbed without proper containment.",
+        "trade": "electrical",
+        "quantity": null,
+        "confidence": 0.95,
+        "sourcePage": 18,
+        "description": "NE Stairwell and Hangar Entry: Demo old/unused/unsafe panels, disconnects, fuse boxes (#654, S6, #651, old empty panel, old Panel B single phase, old Panel B three phase). Provide new panel outside stairwell with main disconnect and arc flash notation if unsafe panels in use; rewire downstream subpanels. Remove pass-through Panel F and reroute power to Panel GG on Level 2. Repair Panel DD. Cut dead wires, remove to nearest J-Box."
+      },
+      {
+        "id": "CLIN-0002-drywall",
+        "unit": null,
+        "notes": "Associated with CLIN 0002 wall penetrations after electrical demo.",
+        "trade": "drywall",
+        "quantity": null,
+        "confidence": 0.9,
+        "sourcePage": 18,
+        "description": "NE Stairwell: Repair wall openings and provide fresh new sheetrock, taped, mudded and finished. Painting not required."
+      },
+      {
+        "id": "CLIN-0003",
+        "unit": null,
+        "notes": null,
+        "trade": "electrical",
+        "quantity": null,
+        "confidence": 0.92,
+        "sourcePage": 19,
+        "description": "Center Wind Tunnel: Repair associated equipment (Items #657, #658, #659) per McKinstry Hangar 32 Remediation Electrical Facility Assessment and any code problems discovered. Demo and make safe exposed wires/unused electrical equipment."
+      },
+      {
+        "id": "CLIN-0004",
+        "unit": null,
+        "notes": "Transite (asbestos) wall precautions required.",
+        "trade": "electrical",
+        "quantity": null,
+        "confidence": 0.95,
+        "sourcePage": 19,
+        "description": "SE Stairwell and Hangar Entry: Provide services and engineering to demo old/unused/unsafe panels, disconnects, fuse boxes (#657, #658, #659, #664, #666, old empty panel, old Panel C single/three phase, Panel CB-1 #663). Provide new panel outside stairwell with main disconnect and arc flash notation if needed; rewire downstream subpanels. Replace Panel CB-1 with new panel to serve existing loads and panel II. Cut dead wires, remove to nearest J-Box."
+      },
+      {
+        "id": "CLIN-0004-drywall",
+        "unit": null,
+        "notes": "Associated with CLIN 0004 wall penetrations.",
+        "trade": "drywall",
+        "quantity": null,
+        "confidence": 0.9,
+        "sourcePage": 19,
+        "description": "SE Stairwell: Repair wall openings and provide new sheetrock, taped, mudded and finished. Painting not required."
+      },
+      {
+        "id": "CLIN-0005",
+        "unit": null,
+        "notes": "Transite (asbestos) wall precautions required.",
+        "trade": "electrical",
+        "quantity": null,
+        "confidence": 0.95,
+        "sourcePage": 19,
+        "description": "SW Stairwell and Hangar Entry: Demo old/unused/unsafe panels, disconnects, fuse boxes ((2) old empty panels, Panel D #679, Panel P2 #680, FU-1 #668). Provide new panel outside stairwell with main disconnect and arc flash notation if unsafe panels in use; rewire downstream subpanels. Make repairs per McKinstry Assessment. Cut dead wires, remove to nearest J-Box."
+      },
+      {
+        "id": "CLIN-0005-drywall",
+        "unit": null,
+        "notes": "Associated with CLIN 0005 wall penetrations.",
+        "trade": "drywall",
+        "quantity": null,
+        "confidence": 0.9,
+        "sourcePage": 20,
+        "description": "SW Stairwell: Repair wall openings and provide fresh new sheetrock, taped, mudded and finished. Painting not required."
+      },
+      {
+        "id": "CLIN-0006",
+        "unit": null,
+        "notes": "Optional/priced-separately line item per FAR 52.217-7.",
+        "trade": "electrical",
+        "quantity": null,
+        "confidence": 0.95,
+        "sourcePage": 20,
+        "description": "NE Hangar Entry (OPTIONAL CLIN): Provide services including engineering to install new Generator Manual Transfer Switch and portable generator power connection to power Panel DD. Panel serves a critical freezer - coordination required prior to work."
+      },
+      {
+        "id": "ENG-asbuilt",
+        "unit": null,
+        "notes": "Engineering/PE stamp deliverable requirement.",
+        "trade": "electrical",
+        "quantity": null,
+        "confidence": 0.9,
+        "sourcePage": 17,
+        "description": "Provide as-built one-line electrical diagrams with breaker/wire sizes and updated panel schedules; stamped by an Electrical Professional Engineer licensed in the State of Washington. Provide short circuit arc fault calculations for newly installed panels and label arc fault ratings."
+      }
+    ],
+    "metadata": {
+      "owner": "NOAA (National Oceanic and Atmospheric Administration) / U.S. Department of Commerce",
+      "bidDeadline": "08/12/2026 1200 (noon)",
+      "contactName": "Jamie Rosales (Contracting Officer)",
+      "projectName": "WRC H32 Electrical Repairs (NOAA Western Regional Center Electrical Repairs Services)",
+      "rfiDeadline": "08/03/2026",
+      "contactEmail": "Jamie.Rosales@noaa.gov",
+      "contactPhone": null,
+      "projectAddress": "NOAA Western Regional Center (WRC), 7600 Sand Point Way N.E., Seattle, Washington 98115",
+      "walkthroughDate": "Friday July 24, 2026 9:00 am – 11:00 am Pacific Daylight Time",
+      "generalContractor": null
+    },
+    "warnings": [
+      "This is a federal Request for Quotation (RFQ/solicitation 1305M326Q0317), not a private-sector ITB. There is NO general contractor - the subcontractor would respond directly to the Government (NOAA). generalContractor set to null accordingly.",
+      "Bond percentage is not directly stated for performance/payment bonds; only the bid guarantee amount (20% of bid or $3M, whichever less) is specified. bondPercent left null; verify.",
+      "No explicit commercial insurance limits (e.g., general liability dollar amounts) are stated in the document; insuranceRequired marked false - verify separately as federal construction contracts typically require insurance.",
+      "Union rates appear in the Davis-Bacon wage determination but the document does not require union labor; unionRequired marked false.",
+      "Quantities for all CLINs are not provided in the SOW - contractor must determine scope extent via site visit and referenced one-line diagram / McKinstry Assessment (technical exhibits/attachments not included in this text).",
+      "Contact phone: SF-18 references Jamie Rosales but no clear phone number was legible; left null.",
+      "Bid deadline shown as 08/12/2026 1200 on SF-18 (Block referencing quotations before close of business); confirm exact time zone.",
+      "Site visit is 'highly recommended but not required' per FAR 52.237-1, but SOW section 2.1.9 states contractor 'shall walk the site' as a condition to submitting a proposal - conflicting language; verify.",
+      "Hangar 32 (1938 structure) contains regulated materials: Lead-Containing Paint, Asbestos (transite walls), and PCBs - specialized abatement/containment procedures apply per WAC 296-155-176 and 29 CFR 1926.62.",
+      "Drywall/sheetrock repair work is included within electrical CLINs; listed as separate scope items for biddability but is part of the same lump-sum CLINs.",
+      "Additional bond security clauses (52.228-2, 52.228-11, 52.228-14 ILC) incorporated - review surety/letter of credit options.",
+      "Optional CLIN 0006 will be evaluated by adding option price to base; may or may not be exercised."
+    ],
+    "pageCount": 65,
+    "compliance": {
+      "davisBacon": true,
+      "bondPercent": null,
+      "bondRequired": true,
+      "unionRequired": false,
+      "prevailingWage": true,
+      "insuranceLimits": [],
+      "prequalRequired": false,
+      "insuranceRequired": false,
+      "otherRequirements": [
+        "Active SAM (System for Award Management) registration required; must provide UEID/CAGE code with quote",
+        "Bid guarantee required (FAR 52.228-1): 20 percent of bid price or $3 Million, whichever is less",
+        "Performance and Payment Bonds - Construction (FAR 52.228-15) incorporated",
+        "Compliance with 29 CFR Part 1910 OSHA General Industry standards",
+        "Background investigations / security processing (NACI or SAC) for contractor employees; Real ID for facility access",
+        "Davis-Bacon / Construction Wage Rate Requirements (FAR 52.222-6) with WA20260108 wage determination",
+        "Compliance with Copeland Act (FAR 52.222-10)",
+        "Buy American - Construction Materials (FAR 52.225-9)",
+        "Employment Eligibility Verification (E-Verify, FAR 52.222-54)",
+        "Paid Sick Leave under EO 13706 (FAR 52.222-62)",
+        "Minimum Wages under EO 14026 (FAR 52.222-55)",
+        "Sexual Assault and Sexual Harassment prevention training (NAO 202-1106)",
+        "Electronic invoice submission via IPP (Invoice Processing Platform)",
+        "Firm Fixed Price contract; Period of Performance 6 months from Notice to Proceed",
+        "Technical Approach, Experience, and Past Performance (min 2 references from 2 separate contracts within past 2 years) required in quote"
+      ],
+      "licenseRequirements": [
+        "As-built drawings and new panel schedules must be stamped by an Electrical Professional Engineer licensed in the State of Washington"
+      ]
+    },
+    "exclusions": [
+      "Painting of repaired sheetrock (explicitly not required)",
+      "Permits (SOW states 'No permits required')",
+      "Utilities in facility (government furnished)",
+      "Restroom facilities in Hangar 32 (government furnished)",
+      "NOAA basket lift for accessing hangar trusses (may be utilized - government furnished)"
+    ],
+    "inclusions": [
+      "All labor, equipment, and materials necessary for the electrical repairs (unless otherwise government-furnished)",
+      "All labor, travel, project management, and administrative work included in quote",
+      "Detailed project schedule and maintenance/updates",
+      "Job-specific safety plan (within 14 calendar days of award) including LOTO procedures",
+      "QC plan for design review, construction, commissioning",
+      "As-built drawings stamped by WA-licensed Electrical PE and updated panel schedules",
+      "Short circuit arc fault calculations for newly installed panels",
+      "Dust control, employee exposure assessments, and waste characterization for LCP/LCM disturbance",
+      "Asbestos containment for any transite panel penetrations (encapsulant min 6\" back)",
+      "Waste disposal off-site or in contractor-provided dumpster; daily clean-up",
+      "Electrical Load Survey (within 60 calendar days of award)",
+      "Daily reports with pictures; bi-weekly progress meetings",
+      "Coordination of electrical shut-offs with WRC Facilities at least a week in advance (critical freezers)",
+      "Asbestos-Containing Materials Certification submitted with quote",
+      "Sheetrock repair (tape, mud, finish) at wall openings from demo work"
+    ],
+    "primaryTrade": "electrical",
+    "rawTextPreview": "REQUEST FOR QUOTATION\n(THIS IS NOT AN ORDER)\nTHIS RFQ IS IS NOT A SMALL BUSINESS SET-ASIDE\n15. DATE OF QUOTATION\n16. SIGNER\na. NAME (Type or print)\nc. TITLE (Type or print)\nb. TELEPHONE\nAREA CODE\nNUMBER\nSTANDARD FORM 18 (REV. 6/1995)\nPrescribed by GSA-FAR (48 CFR) 53.215-1(a)\nAUTHORIZED FOR LOCAL REPRODUCTION\nPrevious edition not usable\n8. TO:\nb. COMPANY a. NAME\nc. STREET ADDRESS\nd. CITY e. STATE f. ZIP CODE\n9. DESTINATION\na. NAME OF CONSIGNEE\nb. STREET ADDRESS\nd. STATE e. ZIP CODE\n7. DELIVERY\nFOB DESTINATION\nOTHER\n(See Schedule)\n10. PLEASE FURNISH QUOTATIONS TO THE\nISSUING OFFICE IN BLOCK 5a ON OR\nBEFORE CLOSE OF BUSINESS (Date)\nIMPORTANT: This is a request for information and quotations furnished are not offers. If you are unable to quote, please\nso indicate on this form and return it to the address in Block 5a. This request does not commit the Government to pay any\ncosts incurred in the preparation of the submission of this quotation or to contract for supplies or service. Supplies are of\ndomestic origin unless otherwise indicated by quoter. Any representations and/or certifications attached to this Request for\nQuotation must be completed by the quoter.\n11. SCHEDULE (Include applicable Federal, State and local taxes)\nITEM NUMBER\n(a)\nSUPPLIES/SERVICES\n(b)\nQUANTITY\n(c)\nUNIT\n(d)\nUNIT PRICE\n(e)\nAMOUNT\n(f)\n12. DISCOUNT FOR PROMPT PAYMENT\na. 10 CALENDAR DAYS (%) b. 20 CALENDAR DAYS (%) c. 30 CALENDAR DAYS (%) d. CALENDAR DAYS\nNUMBER PERCENTAGE\nNOTE: Additional provisions and representations are are not attached.\n13. NAME AND ADDRESS OF QUOTER\na. NAME OF QUOTER\nb. STREET ADDRESS\nc. COUNTY\nd. CITY e. STATE f. ZIP CODE\n14. SIGNATURE OF PERSON AUTHORIZED TO\nSIGN QUOTATION\nPAGE OF PAGES\n1. REQUEST NUMBER 2. DATE ISSUED 3. REQUISITION/PURCHASE REQUEST NUMBER 4. CERT. FOR NAT. DEF.\nUNDER BDSA REG. 2\nAND/OR DMS REG. 1\nRATING\n5a. ISSUED BY 6. DELIVER BY (Date)\nNAME TELEPHONE NUMBER\nAREA CODE NUMBER\nc. CITY\n5b. FOR INFORMATION CALL (NO COLLECT CALLS)\n\n7600 SAND POINT WAY NE\n/R/P"
+  },
+  "lineItems": [
+    {
+      "id": "1fe0ca9e-fa5b-425f-8709-95d5d770c828",
+      "unit": "LS",
+      "notes": "No quantity provided in ITB; carried as lump sum. Contractor must confirm existing conditions via site visit per government scope.",
+      "quantity": 1,
+      "confidence": null,
+      "sourcePage": 18,
+      "description": "Panel Repairs Room 109: Repair faulty installation in panel F2 (#647) per McKinstry Survey - install K.O. seals (3\", 1\", 3/4\", 1/2\"), correct CKT-26,28,30 (2 wires per, wrong size), provide wire for 100A 3-pole. Demo and make safe exposed wires/unused electrical equipment.",
+      "unitCostCents": 0,
+      "totalCostCents": 0
+    },
+    {
+      "id": "30f7b090-690e-4f0a-9a7f-35783749a1f1",
+      "unit": "LS",
+      "notes": "No quantity provided; carried as lump sum. Transite (asbestos) wall between stairwell and hangar must not be disturbed without proper containment - abatement excluded. Extent of downstream subpanel rewiring to be verified via site visit and one-line diagram.",
+      "quantity": 1,
+      "confidence": null,
+      "sourcePage": 18,
+      "description": "NE Stairwell and Hangar Entry: Demo old/unused/unsafe panels, disconnects, fuse boxes (#654, S6, #651, old empty panel, old Panel B single phase, old Panel B three phase). Provide new panel outside stairwell with main disconnect and arc flash notation if unsafe panels in use; rewire downstream subpanels. Remove pass-through Panel F and reroute power to Panel GG on Level 2. Repair Panel DD. Cut dead wires, remove to nearest J-Box.",
+      "unitCostCents": 0,
+      "totalCostCents": 0
+    },
+    {
+      "id": "8afff9af-a79c-4b58-8cfe-554438cf40a4",
+      "unit": "LS",
+      "notes": "No quantity provided; carried as lump sum. Scope extent of 'any code problems discovered' is open-ended - must be bounded via site visit and McKinstry Assessment; raised as clarification.",
+      "quantity": 1,
+      "confidence": null,
+      "sourcePage": 19,
+      "description": "Center Wind Tunnel: Repair associated equipment (Items #657, #658, #659) per McKinstry Hangar 32 Remediation Electrical Facility Assessment and any code problems discovered. Demo and make safe exposed wires/unused electrical equipment.",
+      "unitCostCents": 0,
+      "totalCostCents": 0
+    },
+    {
+      "id": "9a2fe759-5257-47a0-9cb7-83ae753a27e6",
+      "unit": "LS",
+      "notes": "No quantity provided; carried as lump sum. Transite (asbestos) wall precautions required - abatement/containment excluded. Downstream subpanel rewiring extent to be verified via site visit.",
+      "quantity": 1,
+      "confidence": null,
+      "sourcePage": 19,
+      "description": "SE Stairwell and Hangar Entry: Demo old/unused/unsafe panels, disconnects, fuse boxes (#657, #658, #659, #664, #666, old empty panel, old Panel C single/three phase, Panel CB-1 #663). Provide new panel outside stairwell with main disconnect and arc flash notation if needed; rewire downstream subpanels. Replace Panel CB-1 with new panel to serve existing loads and panel II. Cut dead wires, remove to nearest J-Box.",
+      "unitCostCents": 0,
+      "totalCostCents": 0
+    },
+    {
+      "id": "9dbcec46-dd2c-4d66-86e5-632edfbfef2e",
+      "unit": "LS",
+      "notes": "No quantity provided; carried as lump sum. Transite (asbestos) wall precautions required - abatement/containment excluded. Downstream subpanel rewiring extent to be verified via site visit.",
+      "quantity": 1,
+      "confidence": null,
+      "sourcePage": 19,
+      "description": "SW Stairwell and Hangar Entry: Demo old/unused/unsafe panels, disconnects, fuse boxes ((2) old empty panels, Panel D #679, Panel P2 #680, FU-1 #668). Provide new panel outside stairwell with main disconnect and arc flash notation if unsafe panels in use; rewire downstream subpanels. Make repairs per McKinstry Assessment. Cut dead wires, remove to nearest J-Box.",
+      "unitCostCents": 0,
+      "totalCostCents": 0
+    },
+    {
+      "id": "1a524e46-2a65-4b6f-b3e5-016e6ad9ff26",
+      "unit": "LS",
+      "notes": "OPTIONAL CLIN per FAR 52.217-7 - to be priced separately from base. Serves a critical freezer; shutdown coordination with WRC Facilities required at least a week in advance.",
+      "quantity": 1,
+      "confidence": null,
+      "sourcePage": 20,
+      "description": "NE Hangar Entry (OPTIONAL CLIN): Provide services including engineering to install new Generator Manual Transfer Switch and portable generator power connection to power Panel DD. Panel serves a critical freezer - coordination required prior to work.",
+      "unitCostCents": 0,
+      "totalCostCents": 0
+    },
+    {
+      "id": "a05b415d-366b-4cbf-9e08-bf79f0804423",
+      "unit": "LS",
+      "notes": "Engineering/PE stamp deliverable required by SOW; a WA-licensed Electrical PE must stamp as-builts and panel schedules. Included here because the ITB specifically requires it as part of this contract.",
+      "quantity": 1,
+      "confidence": null,
+      "sourcePage": 17,
+      "description": "Provide as-built one-line electrical diagrams with breaker/wire sizes and updated panel schedules; provide short circuit arc fault calculations for newly installed panels and label arc fault ratings. Deliverable stamped by an Electrical Professional Engineer licensed in the State of Washington.",
+      "unitCostCents": 0,
+      "totalCostCents": 0
+    }
+  ],
+  "assumptions": [
+    "The existing electrical service has adequate capacity for the new loads without upgrade.",
+    "Existing circuits, panels, and junction boxes are accessible and correctly labeled.",
+    "All work is performed during normal business hours, Monday through Friday, 7:00 AM to 3:30 PM, excluding holidays.",
+    "No overtime, premium time, shift work, or weekend work is included.",
+    "Pricing is based on a single mobilization. Additional mobilizations will be billed as a change order.",
+    "Existing conditions are as shown on the documents and as observed during the site walkthrough.",
+    "This proposal is based solely on the documents listed and any addenda issued prior to the bid date.",
+    "Addenda issued after our bid date are not included and may affect pricing.",
+    "Utilities, restroom facilities, and NOAA basket lift at Hangar 32 are government-furnished at no cost to us per the SOW.",
+    "Quantities for all CLINs are not stated in the SOW; scope extent is based on the referenced one-line diagram and McKinstry Assessment as reviewed during the required site visit. Scope discovered beyond the referenced items may affect pricing.",
+    "Handling of regulated materials (asbestos transite walls, lead-containing paint, PCBs) is performed by a qualified abatement contractor; our electrical work assumes affected areas are containerized/contained by others before we penetrate.",
+    "Drywall/sheetrock repair (tape, mud, finish) at demo wall openings is included within the applicable stairwell CLINs; painting is not required and is excluded."
+  ],
+  "clarifications": [
+    "Has the existing electrical service capacity been verified as adequate for the new loads on the new stairwell panels and Panel CB-1/II replacement?",
+    "What shutdown windows are available for tie-ins, and how far in advance must critical freezer (Panel DD) shutdowns be coordinated with WRC Facilities?",
+    "Please confirm the complete technical exhibit set - specifically the referenced one-line diagram and the McKinstry Hangar 32 Remediation Electrical Facility Assessment - that the quote should be based on, as these were not included in the RFQ text.",
+    "For CLIN-0003 Center Wind Tunnel, please bound the scope of 'any code problems discovered' - is corrective work beyond items #657/#658/#659 in the base or handled by change order?",
+    "SOW section 2.1.9 states the contractor 'shall walk the site' as a condition to submitting, while FAR 52.237-1 states the site visit is highly recommended but not required. Please confirm whether the site visit is mandatory.",
+    "Please confirm the required performance and payment bond percentage (FAR 52.228-15); only the bid guarantee (20% of bid or $3M) is stated. Should bond cost be included in the base or listed separately?",
+    "Please confirm required commercial insurance limits and any unusual endorsements, as no dollar limits are stated in the RFQ.",
+    "Please confirm whether Optional CLIN 0006 (Generator Manual Transfer Switch) is to be evaluated by add-to-base, and confirm the required generator connection specifications.",
+    "Confirm the exact bid deadline time zone for 08/12/2026 1200 (noon).",
+    "Please confirm the scope boundary between our electrical demo work and the abatement contractor responsible for asbestos transite, lead paint, and PCB handling.",
+    "Confirm whether liquidated damages apply to this scope and, if so, at what rate."
+  ],
+  "exclusions": [
+    "Painting, finishing, and touch-up of repaired sheetrock (explicitly not required per SOW).",
+    "Permits, permit fees, plan review fees, and impact fees (SOW states no permits required).",
+    "Utility company fees, service upgrades, and transformer work by the utility.",
+    "Abatement or handling of asbestos (transite walls), lead-containing paint, PCBs, mold, contaminated soil, or any hazardous material; containment and disposal of regulated materials by others.",
+    "Temporary power, temporary lighting, temporary water, and temporary toilets (government-furnished per SOW).",
+    "Low-voltage, data, security, and audiovisual systems and cabling.",
+    "Final connections to owner-furnished equipment not shown on the documents.",
+    "Work arising from unforeseen, concealed, or differing site conditions.",
+    "Overtime, premium time, shift work, and weekend or holiday work.",
+    "Liquidated damages and consequential damages of any kind.",
+    "Material price escalation beyond the proposal validity period.",
+    "Third-party commissioning and commissioning agent support.",
+    "Special inspection, third-party testing, and independent laboratory fees.",
+    "Removal and replacement of ceiling tile and grid to access work above.",
+    "Cutting, patching, and repair of finished surfaces beyond the scoped sheetrock repair at demo openings.",
+    "Firestopping and fire-rated penetration sealing not associated with the specified K.O. seals.",
+    "Payment and performance bonds are available at additional cost if required and are not included unless directed."
+  ]
+}
