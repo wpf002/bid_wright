@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { HardHat, CheckCircle2, Loader2 } from "lucide-react";
+import { FileSignature, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 
@@ -47,13 +47,13 @@ export default function RegisterPage() {
           className="mb-8 flex items-center justify-center gap-2 text-lg font-semibold text-slate-900 dark:text-slate-100"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-amber-500 text-slate-950">
-            <HardHat className="h-5 w-5" strokeWidth={2.5} />
+            <FileSignature className="h-5 w-5" strokeWidth={2.5} />
           </div>
           BidWright
         </Link>
 
         <div className="card p-8">
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Start free trial</h1>
+          <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Start Free Trial</h1>
           <p className="mt-1 text-sm text-slate-500">3 bids free. No credit card required.</p>
 
           <form className="mt-6 space-y-4" onSubmit={onSubmit}>
@@ -110,7 +110,7 @@ export default function RegisterPage() {
 
             <button type="submit" disabled={submitting} className="btn-primary w-full px-4 py-2 text-sm">
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {submitting ? "Creating account…" : "Create account"}
+              {submitting ? "Creating Account…" : "Create Account"}
             </button>
           </form>
 
@@ -126,7 +126,7 @@ export default function RegisterPage() {
           <div className="mt-6 text-center text-sm text-slate-500">
             Already have an account?{" "}
             <Link href="/auth/login" className="font-medium text-amber-600 hover:text-amber-700">
-              Log in
+              Log In
             </Link>
           </div>
         </div>

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  HardHat, LayoutDashboard, Columns3, Calendar, BarChart3, Settings, LogOut, Plus,
+  FileSignature, LayoutDashboard, Columns3, Calendar, BarChart3, Settings, LogOut, Plus,
   Menu, X, Sun, Moon, Command,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
@@ -21,7 +21,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="fixed inset-x-0 top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-2.5 lg:hidden dark:border-slate-800 dark:bg-slate-900">
         <Link href="/dashboard" className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-500 text-slate-950">
-            <HardHat className="h-4 w-4" strokeWidth={2.5} />
+            <FileSignature className="h-4 w-4" strokeWidth={2.5} />
           </div>
           <span className="font-semibold text-slate-900 dark:text-slate-100">BidWright</span>
         </Link>
@@ -51,7 +51,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="flex items-center justify-between px-6 py-5">
           <Link href="/dashboard" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-amber-500 text-slate-950">
-              <HardHat className="h-5 w-5" strokeWidth={2.5} />
+              <FileSignature className="h-5 w-5" strokeWidth={2.5} />
             </div>
             <span className="text-lg font-semibold text-slate-900 dark:text-slate-100">BidWright</span>
           </Link>
@@ -67,7 +67,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="px-3">
           <Link href="/bids/new" onClick={() => setNavOpen(false)} className="btn-primary w-full px-3 py-2 text-sm">
             <Plus className="h-4 w-4" />
-            New bid
+            New Bid
           </Link>
         </div>
 
@@ -90,7 +90,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
           >
             {resolved === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            {resolved === "dark" ? "Light mode" : "Dark mode"}
+            {resolved === "dark" ? "Light Mode" : "Dark Mode"}
           </button>
           {user && (
             <div className="truncate px-3 pt-1 text-xs text-slate-500" title={user.email}>
@@ -102,7 +102,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
           >
             <LogOut className="h-4 w-4" />
-            Log out
+            Log Out
           </button>
         </div>
       </aside>

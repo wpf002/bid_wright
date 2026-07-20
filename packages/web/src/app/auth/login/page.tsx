@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { HardHat, Loader2 } from "lucide-react";
+import { FileSignature, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 
@@ -44,7 +44,7 @@ export default function LoginPage() {
           className="mb-8 flex items-center justify-center gap-2 text-lg font-semibold text-slate-900 dark:text-slate-100"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-amber-500 text-slate-950">
-            <HardHat className="h-5 w-5" strokeWidth={2.5} />
+            <FileSignature className="h-5 w-5" strokeWidth={2.5} />
           </div>
           BidWright
         </Link>
@@ -93,14 +93,14 @@ export default function LoginPage() {
 
             <button type="submit" disabled={submitting} className="btn-primary w-full px-4 py-2 text-sm">
               {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {submitting ? "Logging in…" : "Log in"}
+              {submitting ? "Logging In…" : "Log In"}
             </button>
           </form>
 
           <div className="mt-6 text-center text-sm text-slate-500">
             No account?{" "}
             <Link href="/auth/register" className="font-medium text-amber-600 hover:text-amber-700">
-              Start free trial
+              Start Free Trial
             </Link>
           </div>
         </div>

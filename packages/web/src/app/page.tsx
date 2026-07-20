@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   FileText, Zap, ShieldCheck, Clock, Layers, Sparkles,
-  ArrowRight, CheckCircle2, HardHat,
+  ArrowRight, CheckCircle2, FileSignature,
 } from "lucide-react";
 
 export default function LandingPage() {
@@ -12,16 +12,16 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-2 text-lg font-semibold text-slate-900">
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-amber-500 text-slate-950">
-              <HardHat className="h-5 w-5" strokeWidth={2.5} />
+              <FileSignature className="h-5 w-5" strokeWidth={2.5} />
             </div>
             BidWright
           </Link>
           <div className="flex items-center gap-3">
             <Link href="/auth/login" className="btn-ghost px-4 py-2 text-sm">
-              Log in
+              Log In
             </Link>
             <Link href="/auth/register" className="btn-primary px-4 py-2 text-sm">
-              Start free trial
+              Start Free Trial
             </Link>
           </div>
         </div>
@@ -178,7 +178,7 @@ export default function LandingPage() {
             If it doesn&apos;t, walk away.
           </p>
           <Link href="/auth/register" className="mt-10 inline-flex items-center gap-2 rounded-lg bg-amber-500 px-6 py-3 font-medium text-slate-950 hover:bg-amber-400">
-            Start free trial <ArrowRight className="h-4 w-4" />
+            Start Free Trial <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
       </section>

@@ -67,7 +67,7 @@ export default function SettingsPage() {
       <section className="mt-8">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
           <Building2 className="h-4 w-4" />
-          Company profile
+          Company Profile
         </h2>
         <p className="mt-1 text-sm text-slate-500">
           This is what appears on an exported proposal.
@@ -85,7 +85,7 @@ export default function SettingsPage() {
                 />
               ) : (
                 <div className="flex h-12 w-32 items-center justify-center rounded border border-dashed border-slate-300 text-xs text-slate-400 dark:border-slate-700">
-                  No letterhead
+                  No Letterhead
                 </div>
               )}
               <input
@@ -108,7 +108,7 @@ export default function SettingsPage() {
               />
               <button onClick={() => logoInput.current?.click()} className="btn-secondary px-2.5 py-1.5 text-xs">
                 <Upload className="h-3.5 w-3.5" />
-                {profile.hasLogo ? "Replace" : "Upload"} letterhead
+                {profile.hasLogo ? "Replace" : "Upload"} Letterhead
               </button>
               {profile.hasLogo && (
                 <button
@@ -168,7 +168,7 @@ export default function SettingsPage() {
                 className="btn-primary px-4 py-1.5 text-sm"
               >
                 {savingProfile && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                Save profile
+                Save Profile
               </button>
             </div>
           </div>
@@ -178,7 +178,7 @@ export default function SettingsPage() {
       <section className="mt-10">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
           <Inbox className="h-4 w-4" />
-          Bids by email
+          Bids by Email
         </h2>
         <p className="mt-1 text-sm text-slate-500">
           Forward an ITB to your private address and it lands on your bid board, read and drafted.
@@ -240,7 +240,7 @@ export default function SettingsPage() {
       </section>
 
       <section className="mt-10">
-        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Recent inbound mail</h2>
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Recent Inbound Mail</h2>
         <p className="mt-1 text-sm text-slate-500">
           Everything that reached your address, and what BidWright decided.
         </p>

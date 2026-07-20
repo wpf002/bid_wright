@@ -104,7 +104,7 @@ export default function NewBidPage() {
         Bid Board
       </Link>
 
-      <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">New bid</h1>
+      <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">New Bid</h1>
       <p className="mt-1 text-sm text-slate-500">
         Drop in the ITB PDF. BidWright reads the scope, quantities, deadlines, and compliance
         requirements, then drafts a response you can edit.
@@ -189,7 +189,7 @@ export default function NewBidPage() {
             disabled={!file}
             className="btn-primary mt-6 w-full px-4 py-2.5 text-sm"
           >
-            Extract and draft response
+            Extract and Draft Response
           </button>
         </>
       )}
