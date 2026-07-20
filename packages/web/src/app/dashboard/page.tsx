@@ -30,9 +30,7 @@ const TONE_CLASS: Record<string, string> = {
   none: "text-slate-400",
 };
 
-const STATUS_FILTERS = ["all", "draft", "in_review", "submitted", "won", "lost"] as const;
-
-type Outcome = "all" | "open" | "won" | "lost" | "withdrawn";
+const STATUS_FILTERS = ["all", "draft", "in_review", "submitted", "won", "lost", "withdrawn"] as const;
 
 export default function BidBoardPage() {
   const { loading: authLoading, user } = useRequireAuth();
@@ -43,7 +41,6 @@ export default function BidBoardPage() {
   const [status, setStatus] = useState<string>("all");
   const [trade, setTrade] = useState<string>("all");
   const [gc, setGc] = useState<string>("all");
-  const [outcome, setOutcome] = useState<Outcome>("all");
   const [sortKey, setSortKey] = useState<SortKey>("deadline");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
@@ -78,14 +75,9 @@ export default function BidBoardPage() {
       .filter((b) => matchesQuery(b, query))
       .filter((b) => status === "all" || b.status === status)
       .filter((b) => trade === "all" || b.primaryTrade === trade)
-      .filter((b) => gc === "all" || counterparty(b)?.name === gc)
-      .filter((b) => {
-        if (outcome === "all") return true;
-        if (outcome === "open") return !b.outcome;
-        return b.outcome?.result === outcome;
-      });
+      .filter((b) => gc === "all" || counterparty(b)?.name === gc);
     return sortBids(filtered, sortKey, sortDir);
-  }, [bids, query, status, trade, gc, outcome, sortKey, sortDir]);
+  }, [bids, query, status, trade, gc, sortKey, sortDir]);
 
   const weekCount = useMemo(() => dueThisWeek(bids).length, [bids]);
 
@@ -166,7 +158,7 @@ export default function BidBoardPage() {
             </div>
 
             {/* Attribute filters folded in from the old All Bids page. Status
-                stays as pills above — it's the one you reach for most. */}
+                (won/lost/withdrawn included) stays as pills above. */}
             <Select
               label="Trade"
               value={trade}
@@ -178,18 +170,6 @@ export default function BidBoardPage() {
               value={gc}
               onChange={setGc}
               options={[["all", "All GCs / owners"], ...counterparties.map((c) => [c, c] as [string, string])]}
-            />
-            <Select
-              label="Outcome"
-              value={outcome}
-              onChange={(v) => setOutcome(v as Outcome)}
-              options={[
-                ["all", "Any outcome"],
-                ["open", "No outcome yet"],
-                ["won", "Won"],
-                ["lost", "Lost"],
-                ["withdrawn", "Withdrawn"],
-              ]}
             />
           </div>
 
