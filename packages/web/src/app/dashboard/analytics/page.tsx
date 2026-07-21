@@ -175,7 +175,11 @@ function Stat({
         <Icon className="h-3.5 w-3.5" />
         {label}
       </div>
-      <div className="mt-1 font-mono text-2xl font-semibold text-slate-900 dark:text-slate-100">{value}</div>
+      {/* Smaller on phones so a value like $181,200.00 fits the half-width
+          tile; truncate is the belt-and-suspenders for an even bigger number. */}
+      <div className="mt-1 truncate font-mono text-lg font-semibold text-slate-900 sm:text-2xl dark:text-slate-100">
+        {value}
+      </div>
       <div className="text-xs text-slate-400">{sub}</div>
     </div>
   );
