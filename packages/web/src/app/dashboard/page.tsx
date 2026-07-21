@@ -173,7 +173,8 @@ export default function BidBoardPage() {
             />
           </div>
 
-          <ul className="space-y-2 sm:hidden">
+          {/* Cards through tablet; the 6-column table only fits a desktop. */}
+          <ul className="space-y-2 lg:hidden">
             {visible.map((bid) => {
               const cd = countdown(bid.bidDeadline);
               const st = STATUSES[bid.status] ?? STATUSES.draft;
@@ -203,7 +204,7 @@ export default function BidBoardPage() {
           </ul>
 
           {/* A 6-column table is unreadable at 390px, so mobile gets cards. */}
-          <div className="card hidden overflow-hidden sm:block">
+          <div className="card hidden overflow-hidden lg:block">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-900/50">
@@ -304,7 +305,9 @@ function Select({
       aria-label={label}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="input w-auto py-1.5 text-xs capitalize"
+      // Full-width on phones so a long option (a 57-char agency name) can't run
+      // off the screen; auto-sized but capped on larger screens.
+      className="input w-full py-1.5 text-xs capitalize sm:w-auto sm:max-w-[14rem]"
     >
       {options.map(([v, l]) => (
         <option key={v} value={v}>

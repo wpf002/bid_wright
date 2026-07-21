@@ -62,6 +62,22 @@ export function PdfViewer({ bidId, data, page, onPageChange, jumpNonce }: Props)
         if (cancelled) return;
         docRef.current = doc;
         setNumPages(doc.numPages);
+
+        // Fit the page to the available width so it doesn't overflow on a
+        // phone. Caps at 1.2 so it never upscales on a wide desktop pane, and
+        // the +/- controls still override it. Container may be hidden (width 0)
+        // when the editor opens on mobile, so fall back to the window width.
+        try {
+          const first = await doc.getPage(1);
+          const natural = first.getViewport({ scale: 1 }).width;
+          const avail = (containerRef.current?.clientWidth || window.innerWidth) - 24;
+          if (!cancelled && natural > 0) {
+            setScale(Math.max(0.4, Math.min(1.2, avail / natural)));
+          }
+        } catch {
+          // Keep the default scale if measuring fails.
+        }
+
         setLoading(false);
       } catch (err) {
         if (!cancelled) {
