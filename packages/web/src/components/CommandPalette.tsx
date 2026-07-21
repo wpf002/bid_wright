@@ -32,7 +32,8 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
-  // Cmd+K / Ctrl+K anywhere.
+  // Cmd+K / Ctrl+K anywhere, plus a custom event so a touch device (which has
+  // no keyboard) can open it from an on-screen button.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -40,8 +41,13 @@ export function CommandPalette() {
         setOpen((o) => !o);
       }
     };
+    const onOpen = () => setOpen(true);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("open-command-palette", onOpen);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("open-command-palette", onOpen);
+    };
   }, []);
 
   // Load bids lazily, only once the palette is first opened.

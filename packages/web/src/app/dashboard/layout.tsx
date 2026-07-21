@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   FileSignature, LayoutDashboard, Columns3, Calendar, BarChart3, Settings, LogOut, Plus,
-  Menu, X, Sun, Moon, Command,
+  Menu, X, Sun, Moon, Command, Search,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme";
@@ -25,14 +25,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           <span className="font-semibold text-slate-900 dark:text-slate-100">BidWright</span>
         </Link>
-        <button
-          onClick={() => setNavOpen((o) => !o)}
-          aria-label={navOpen ? "Close menu" : "Open menu"}
-          aria-expanded={navOpen}
-          className="btn-ghost h-8 w-8 p-0"
-        >
-          {navOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        <div className="flex items-center gap-1">
+          {/* No keyboard on a phone, so surface the command palette as a button. */}
+          <button
+            onClick={() => window.dispatchEvent(new Event("open-command-palette"))}
+            aria-label="Search"
+            className="btn-ghost h-8 w-8 p-0"
+          >
+            <Search className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => setNavOpen((o) => !o)}
+            aria-label={navOpen ? "Close menu" : "Open menu"}
+            aria-expanded={navOpen}
+            className="btn-ghost h-8 w-8 p-0"
+          >
+            {navOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       {navOpen && (
