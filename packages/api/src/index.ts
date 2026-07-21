@@ -43,7 +43,9 @@ async function main() {
     app.log.info("storage sweep disabled (STORAGE_SWEEP_ENABLED=false)");
   }
 
-  const PORT = Number(process.env.API_PORT ?? 4000);
+  // Railway (and most PaaS) inject PORT and route the public domain to it;
+  // API_PORT stays the local-dev knob.
+  const PORT = Number(process.env.PORT ?? process.env.API_PORT ?? 4000);
   await app.listen({ port: PORT, host: "0.0.0.0" });
   console.log(`🚀 BidWright API listening on http://localhost:${PORT}`);
 }

@@ -195,7 +195,12 @@ export async function purgeExpiredSupporting(
   const dryRun = opts.dryRun ?? true;
   const cutoff = new Date(Date.now() - days * 86_400_000);
 
-  const expired = await db
+  // Explicitly typed: in a clean install the drizzle query builder's row type
+  // can resolve to `any` (cross-workspace .d.ts resolution), which would leave
+  // the map/reduce callbacks below with implicit-any params and fail the build.
+  // The annotation matches the selected columns and is safe either way.
+  type ExpiredRow = { id: string; storagePath: string; fileSize: number };
+  const expired: ExpiredRow[] = await db
     .select({ id: uploads.id, storagePath: uploads.storagePath, fileSize: uploads.fileSize })
     .from(uploads)
     .where(and(eq(uploads.isPrimary, false), lt(uploads.createdAt, cutoff)));

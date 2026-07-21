@@ -1,0 +1,16 @@
+# Build context is the repo root for both service Dockerfiles. Keep it lean and
+# never ship local state — installs and builds happen inside the image.
+**/node_modules
+**/dist
+**/.next
+# tsbuildinfo lives at the package root (not in dist), so it dodges the dist
+# rule. Left in, a stale one makes composite tsc skip emit → no dist → the
+# workspaces can't resolve each other's types. Never ship it.
+**/*.tsbuildinfo
+uploads
+sample-itbs
+.git
+*.log
+.env
+.env.*
+npm-debug.log*
