@@ -137,9 +137,13 @@ export default function NewBidPage() {
           >
             <UploadCloud className={`h-9 w-9 ${dragging ? "text-amber-500" : "text-slate-400"}`} />
             <p className="mt-3 text-sm font-medium text-slate-900 dark:text-slate-100">
-              Drop your ITB PDF here
+              {/* "Drop" and "click" are desktop verbs; a phone taps to open the picker. */}
+              <span className="sm:hidden">Tap to add your ITB PDF</span>
+              <span className="hidden sm:inline">Drop your ITB PDF here</span>
             </p>
-            <p className="mt-1 text-xs text-slate-500">or click to browse · PDF up to 50 MB</p>
+            <p className="mt-1 text-xs text-slate-500">
+              <span className="hidden sm:inline">or click to browse · </span>PDF up to 50 MB
+            </p>
             <input
               ref={inputRef}
               type="file"
