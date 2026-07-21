@@ -17,6 +17,14 @@ const TONE_DOT: Record<string, string> = {
   none: "bg-slate-300",
 };
 
+const TONE_TEXT: Record<string, string> = {
+  overdue: "text-red-600 dark:text-red-400",
+  urgent: "text-red-600 dark:text-red-400",
+  soon: "text-amber-600 dark:text-amber-400",
+  normal: "text-slate-500",
+  none: "text-slate-400",
+};
+
 export default function CalendarPage() {
   const { user } = useRequireAuth();
   const [bids, setBids] = useState<BidRow[]>([]);
@@ -41,6 +49,17 @@ export default function CalendarPage() {
   const weeks = useMemo(
     () => chunkWeeks(buildMonthGrid(cursor.year, cursor.month, bids, today)),
     [cursor, bids, today],
+  );
+
+  // The grid cells are too narrow to read a bid name on a phone, so this backs
+  // it with a plain list of the month's deadlines, in date order.
+  const monthDeadlines = useMemo(
+    () =>
+      weeks
+        .flat()
+        .filter((d) => d.inMonth)
+        .flatMap((d) => d.bids.map((bid) => ({ date: d.date, bid }))),
+    [weeks],
   );
 
   const withDeadline = bids.filter((b) => b.bidDeadline).length;
@@ -148,6 +167,48 @@ export default function CalendarPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Readable list of the same deadlines — the grid text is unreadable on a
+          phone or tablet, where each cell is barely a finger wide. */}
+      <div className="mt-6 lg:hidden">
+        <h2 className="mb-2 text-sm font-medium text-slate-500">
+          {monthLabel(cursor.year, cursor.month)} deadlines
+        </h2>
+        {monthDeadlines.length === 0 ? (
+          <p className="card px-4 py-6 text-center text-sm text-slate-400">
+            No deadlines this month.
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {monthDeadlines.map(({ date, bid }) => {
+              const cd = countdown(bid.bidDeadline, today);
+              return (
+                <li key={bid.id}>
+                  <Link href={`/bids/${bid.id}`} className="card flex items-center gap-3 p-3">
+                    <div className="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-md bg-slate-100 dark:bg-slate-800">
+                      <span className="text-[10px] uppercase text-slate-500">
+                        {date.toLocaleDateString(undefined, { weekday: "short", timeZone: "UTC" })}
+                      </span>
+                      <span className="font-mono text-sm font-semibold text-slate-900 dark:text-slate-100">
+                        {date.getUTCDate()}
+                      </span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">
+                        {bid.projectName ?? bid.itbFileName}
+                      </div>
+                      <div className="truncate text-xs text-slate-500">{counterpartyName(bid)}</div>
+                    </div>
+                    <span className={`shrink-0 whitespace-nowrap text-xs font-medium ${TONE_TEXT[cd.tone]}`}>
+                      {cd.label}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
     </div>
   );
